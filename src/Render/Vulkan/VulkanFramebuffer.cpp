@@ -6,8 +6,10 @@
 #include <stdexcept>
 #include <string>
 
+#include "VulkanDepthBuffer.h"
+
 bool VulkanFramebuffer::Initialize(VulkanDevice* device, VkRenderPass renderPass,
-                                   const std::vector<VkImageView>& imageViews, VkExtent2D extent)
+                                   const std::vector<VkImageView>& imageViews, VkExtent2D extent, VulkanDepthBuffer* depthBuffer)
 {
     if (!device || renderPass == VK_NULL_HANDLE || imageViews.empty())
     {
@@ -22,19 +24,21 @@ bool VulkanFramebuffer::Initialize(VulkanDevice* device, VkRenderPass renderPass
     {
         for (size_t i = 0; i < imageViews.size(); i++)
         {
-            VkImageView attachments[] = { imageViews[i] };
+            VkImageView attachments[] = {
+                imageViews[i],
+                depthBuffer->GetImageView()
+            };
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass;
-            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.attachmentCount = 2;
             framebufferInfo.pAttachments = attachments;
             framebufferInfo.width = extent.width;
             framebufferInfo.height = extent.height;
             framebufferInfo.layers = 1;
 
-            VkResult result = vkCreateFramebuffer(m_device->GetDevice(), &framebufferInfo, 
-                                                  nullptr, &m_framebuffers[i]);
+            VkResult result = vkCreateFramebuffer(m_device->GetDevice(), &framebufferInfo, nullptr, &m_framebuffers[i]);
             if (result != VK_SUCCESS)
             {
                 throw std::runtime_error("Failed to create framebuffer " + std::to_string(i) + 

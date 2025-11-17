@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+class VulkanDepthBuffer;
 class VulkanDevice;
 
 class VulkanFramebuffer
@@ -13,7 +14,7 @@ public:
     ~VulkanFramebuffer() = default;
 
     bool Initialize(VulkanDevice* device, VkRenderPass renderPass,
-                   const std::vector<VkImageView>& imageViews, VkExtent2D extent);
+                    const std::vector<VkImageView>& imageViews, VkExtent2D extent, VulkanDepthBuffer* depthBuffer);
     void Cleanup();
 
     const std::vector<VkFramebuffer>& GetFramebuffers() const { return m_framebuffers; }

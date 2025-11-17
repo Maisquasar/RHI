@@ -30,7 +30,9 @@ public:
     };
     
     QueueFamilyIndices GetQueueFamilyIndices() const { return m_queueFamilies; }
-
+    
+    VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool);
+    void EndSingleTimeCommands(VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
 private:
     bool PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
     int RateDeviceSuitability(VkPhysicalDevice device) const;

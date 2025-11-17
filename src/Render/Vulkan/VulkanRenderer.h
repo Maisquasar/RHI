@@ -12,6 +12,7 @@
 #include "VulkanPipeline.h"
 #include "VulkanFramebuffer.h"
 #include "VulkanCommandBuffer.h"
+#include "VulkanDepthBuffer.h"
 #include "VulkanSyncObjects.h"
 
 class Window;
@@ -50,6 +51,7 @@ private:
     std::unique_ptr<VulkanFramebuffer> m_framebuffer;
     std::unique_ptr<VulkanCommandBuffer> m_commandBuffer;
     std::unique_ptr<VulkanSyncObjects> m_syncObjects;
+    std::unique_ptr<VulkanDepthBuffer> m_depthBuffer;
 
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t m_currentFrame = 0;

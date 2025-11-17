@@ -15,6 +15,9 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "VulkanDepthBuffer.h"
+#include "VulkanTexture.h"
+
 VulkanRenderer::~VulkanRenderer() = default;
 
 bool VulkanRenderer::Initialize(Window* window)
@@ -59,14 +62,38 @@ bool VulkanRenderer::Initialize(Window* window)
             std::cerr << "Failed to initialize render pass!" << std::endl;
             return false;
         }
+        
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding = 0;
+        uboLayoutBinding.descriptorCount = 1;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+        samplerLayoutBinding.binding = 1;
+        samplerLayoutBinding.descriptorCount = 1;
+        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        samplerLayoutBinding.pImmutableSamplers = nullptr;
+        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         // Initialize graphics pipeline
         m_pipeline = std::make_unique<VulkanPipeline>();
         if (!m_pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(),
                                     m_swapChain->GetExtent(),
-                                    "resources/shaders/vert.spv", "resources/shaders/frag.spv"))
+                                    "resources/shaders/vert.spv", "resources/shaders/frag.spv",
+                                    {},
+                                    {uboLayoutBinding, samplerLayoutBinding}))
         {
             std::cerr << "Failed to initialize pipeline!" << std::endl;
+            return false;
+        }
+
+        // Initialize depth buffer
+        m_depthBuffer = std::make_unique<VulkanDepthBuffer>();
+        if (!m_depthBuffer->Initialize(m_device.get(), m_swapChain->GetExtent()))
+        {
+            std::cerr << "Failed to initialize depth buffer!" << std::endl;
             return false;
         }
 
@@ -74,7 +101,7 @@ bool VulkanRenderer::Initialize(Window* window)
         m_framebuffer = std::make_unique<VulkanFramebuffer>();
         if (!m_framebuffer->Initialize(m_device.get(), m_renderPass->GetRenderPass(),
                                        m_swapChain->GetImageViews(),
-                                       m_swapChain->GetExtent()))
+                                       m_swapChain->GetExtent(), m_depthBuffer.get()))
         {
             std::cerr << "Failed to initialize framebuffers!" << std::endl;
             return false;
@@ -286,10 +313,13 @@ void VulkanRenderer::RecreateSwapChain()
     // Recreate framebuffers
     if (!m_framebuffer->Initialize(m_device.get(), m_renderPass->GetRenderPass(),
                                    m_swapChain->GetImageViews(),
-                                   m_swapChain->GetExtent()))
+                                   m_swapChain->GetExtent(), m_depthBuffer.get()))
     {
         throw std::runtime_error("Failed to recreate framebuffers!");
     }
+    
+    VulkanTexture texture;
+    texture.LoadFromFile(m_device.get(), "Resources/textures/debug.jpeg", m_commandBuffer->GetCommandPool(), m_device->GetGraphicsQueue());
 }
 
 #endif

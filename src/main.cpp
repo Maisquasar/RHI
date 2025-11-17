@@ -14,7 +14,7 @@ int Run(int argc, char** argv, char** envp)
     
     WindowConfig config;
     config.title = "Window Test";
-    config.size = Vec2i(1920, 1080);
+    config.size = Vec2i(1280, 720);
     std::unique_ptr<Window> window = Window::Create(WindowAPI::SDL, RenderAPI::Vulkan, config);
 
     if (!window)
