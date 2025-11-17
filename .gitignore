@@ -4,6 +4,7 @@ build/
 vsxmake*/
 CMakeLists.txt
 /.vscode
+/.idea
 
 # MacOS Cache
 .DS_Store
