@@ -100,9 +100,7 @@ bool VulkanRenderer::Initialize(Window* window)
 
         window->EResizeEvent.Bind([this](Vec2i)
         {
-            std::cout << "Window resized" << std::endl;
             m_framebufferResized = true;
-            DrawFrame();
         });
         
         std::cout << "Vulkan renderer initialized successfully!" << std::endl;

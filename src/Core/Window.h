@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-#include "Utils/Event.h"
-
 #include <galaxymath/Maths.h>
 
+#include "Utils/Event.h"
+#include "Core/Input.h"
 #include "Render/RHI/RHIRenderer.h"
 
 #ifdef RENDER_API_VULKAN
@@ -16,35 +16,10 @@ enum class WindowAPI
     SDL,
 };
 
-enum class CursorType
-{
-    Arrow,
-    IBeam,
-    CrossHair,
-    Hand,
-    HResize,
-    WResize
-};
-
-enum class CursorMode
-{
-    Normal,
-    Hidden,
-    Disabled
-};
-
 enum class CoordinateSpace
 {
     Window,
     Screen
-};
-
-enum class KeyEvent
-{
-    None,
-    Pressed,
-    Down,
-    Released
 };
 
 struct WindowConfig

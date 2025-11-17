@@ -189,6 +189,9 @@ VkBool32 VulkanContext::DebugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData)
 {
+    (void)messageType;
+    (void)pUserData;
+    
     const char* severityStr = "";
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
     {

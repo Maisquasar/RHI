@@ -1,5 +1,10 @@
 ﻿#include "WindowGLFW.h"
+
+#include <filesystem>
 #include <iostream>
+#include <GLFW/glfw3native.h>
+
+#include "Resource/Loader/ImageLoader.h"
 
 // #define STB_IMAGE_IMPLEMENTATION
 // #include <stb_image.h>
@@ -165,21 +170,20 @@ void WindowGLFW::SetPosition(const Vec2i& position)
 
 void WindowGLFW::SetIcon(const std::filesystem::path& icon)
 {
-    (void)icon;
-    //TODO
-    // int width, height, channels;
-    // unsigned char* data = stbi_load(icon.string().c_str(), &width, &height, &channels, 4);
-    //
-    // if (data)
-    // {
-    //     GLFWimage image;
-    //     image.width = width;
-    //     image.height = height;
-    //     image.pixels = data;
-    //     
-    //     glfwSetWindowIcon(GetHandle(), 1, &image);
-    //     stbi_image_free(data);
-    // }
+    ImageLoader::Image image;
+    if (!ImageLoader::Load(icon.generic_string(), image))
+    {
+        std::cerr << "Failed to load icon " << icon.generic_string() << std::endl;
+        return;
+    }
+
+    GLFWimage glfwImage;
+    glfwImage.width = image.size.x;
+    glfwImage.height = image.size.y;
+    glfwImage.pixels = image.data;
+
+    glfwSetWindowIcon(GetHandle(), 1, &glfwImage);
+    ImageLoader::ImageFree(image.data);
 }
 
 void WindowGLFW::SetVSync(bool enabled)

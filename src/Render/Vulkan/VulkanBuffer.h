@@ -1,0 +1,34 @@
+﻿#pragma once
+#ifdef RENDER_API_VULKAN
+
+#include <vulkan/vulkan.h>
+#include <memory>
+
+class VulkanDevice;
+
+class VulkanBuffer
+{
+public:
+    VulkanBuffer() = default;
+    ~VulkanBuffer();
+
+    bool Initialize(VulkanDevice* device, VkDeviceSize size, 
+                   VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    void Cleanup();
+
+    void CopyData(const void* data, VkDeviceSize size);
+    void CopyFrom(VkCommandBuffer commandBuffer, VulkanBuffer* srcBuffer, VkDeviceSize size);
+
+    VkBuffer GetBuffer() const { return m_buffer; }
+    VkDeviceSize GetSize() const { return m_size; }
+
+private:
+    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+    VulkanDevice* m_device = nullptr;
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    VkDeviceMemory m_bufferMemory = VK_NULL_HANDLE;
+    VkDeviceSize m_size = 0;
+};
+
+#endif

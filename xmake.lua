@@ -63,6 +63,7 @@ end
 add_requires("imgui v1.92.0-docking", {configs = imgui_configs})
 add_requires("stb")
 add_requires("galaxymath")
+add_requires("thread-pool")
 
 -- Define macros
 add_defines("IMGUI_DEFINE_MATH_OPERATORS", "IMGUI_IMPLEMENTATION", "NOMINMAX")
@@ -78,7 +79,7 @@ target("Vulkan_Test")
     add_includedirs("src")
 
     -- Always add base packages
-    add_packages("imgui", "galaxymath", "stb")
+    add_packages("imgui", "galaxymath", "stb", "thread-pool")
     
     -- Add Window API packages
     if has_config("glfw") then

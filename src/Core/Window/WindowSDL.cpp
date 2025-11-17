@@ -1,13 +1,14 @@
 ﻿#ifdef WINDOW_API_SDL
 #include "WindowSDL.h"
+
+#include <filesystem>
 #include <iostream>
+
+#include "Resource/Loader/ImageLoader.h"
 
 #ifdef RENDER_API_VULKAN
 #include <SDL2/SDL_vulkan.h>
 #endif
-
-// #define STB_IMAGE_IMPLEMENTATION
-// #include <stb_image.h>
 
 WindowSDL::~WindowSDL()
 {
@@ -27,7 +28,7 @@ bool WindowSDL::Initialize(RenderAPI renderAPI, const WindowConfig& config)
         {
             SDL_version version;
             SDL_GetVersion(&version);
-            std::cout << "SDL version: " << version.major << "." << version.minor << "." << version.patch << std::endl;
+            std::cout << "SDL version: " << static_cast<int>(version.major) << "." << static_cast<int>(version.minor) << "." << static_cast<int>(version.patch) << std::endl;
         }
     }
 
@@ -172,33 +173,32 @@ void WindowSDL::SetPosition(const Vec2i& position)
 
 void WindowSDL::SetIcon(const std::filesystem::path& icon)
 {
-    (void)icon;
-    //TODO
-    // int width, height, channels;
-    // unsigned char* data = stbi_load(icon.string().c_str(), &width, &height, &channels, 4);
-    //
-    // if (data)
-    // {
-    //     SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
-    //         data,
-    //         width,
-    //         height,
-    //         32,
-    //         width * 4,
-    //         0x000000ff,
-    //         0x0000ff00,
-    //         0x00ff0000,
-    //         0xff000000
-    //     );
-    //     
-    //     if (surface)
-    //     {
-    //         SDL_SetWindowIcon(GetHandle(), surface);
-    //         SDL_FreeSurface(surface);
-    //     }
-    //     
-    //     stbi_image_free(data);
-    // }
+    ImageLoader::Image image;
+    if (!ImageLoader::Load(icon.generic_string(), image))
+    {
+        std::cerr << "Failed to load icon " << icon.generic_string() << std::endl;
+        return;
+    }
+    
+    SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(
+        image.data,
+        image.size.x,
+        image.size.y,
+        32,
+        image.size.x * 4,
+        0x000000ff,
+        0x0000ff00,
+        0x00ff0000,
+        0xff000000
+    );
+        
+    if (surface)
+    {
+        SDL_SetWindowIcon(GetHandle(), surface);
+        SDL_FreeSurface(surface);
+    }
+
+    ImageLoader::ImageFree(image.data);
 }
 
 void WindowSDL::SetVSync(bool enabled)
@@ -319,9 +319,11 @@ std::vector<const char*> WindowSDL::GetRequiredExtensions() const
     {
         requiredExtensions.emplace_back(extensions[i]);
     }
+    delete[] extensions;
     return requiredExtensions;
-#endif
+#else
     return {};
+#endif
 }
 
 void* WindowSDL::GetNativeHandle() const
@@ -345,7 +347,6 @@ void WindowSDL::PollEvents()
 
 void WindowSDL::ProcessEvent(const SDL_Event& event)
 {
-    std::cout << "Event: " << event.type << std::endl;
     switch (event.type)
     {
         case SDL_QUIT:
