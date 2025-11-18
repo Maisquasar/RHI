@@ -10,7 +10,7 @@ class VulkanCommandBuffer
 {
 public:
     VulkanCommandBuffer() = default;
-    ~VulkanCommandBuffer() = default;
+    ~VulkanCommandBuffer();
 
     bool Initialize(VulkanDevice* device, uint32_t imageCount);
     void Cleanup();

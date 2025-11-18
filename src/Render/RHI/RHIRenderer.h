@@ -1,6 +1,9 @@
 ﻿#pragma once
 #include <memory>
 
+#include "RHITexture.h"
+#include "Resource/Loader/ImageLoader.h"
+
 class Window;
 
 enum class RenderAPI
@@ -24,5 +27,9 @@ public:
     virtual void Cleanup() = 0;
     
     virtual void DrawFrame() = 0;
+    virtual bool MultiThreadSendToGPU() = 0;
+    virtual std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) = 0;
     
+private:
+    RenderAPI m_renderAPI;
 };

@@ -14,8 +14,8 @@ public:
     Model& operator=(const Model&) = delete;
     ~Model() override = default;
 
-    void Load() override;
-    void SendToGPU() override;
+    bool Load(ResourceManager* resourceManager) override;
+    bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
     
 private:

@@ -4,6 +4,7 @@
 
 #include "Core/UUID.h"
 #include "Core/ThreadPool.h"
+#include "Render/RHI/RHIRenderer.h"
 
 #include "Utils/Type.h"
 
@@ -11,14 +12,20 @@
 #include "Resource/Model.h"
 
 
+class RHIRenderer;
+
 class ResourceManager
 {
 public:
+    ResourceManager() = default;
+    
+    void Initialize(RHIRenderer* renderer);
+    
     template<typename T>
-    std::shared_ptr<T> GetResource(UUID uuid)
+    std::shared_ptr<T> GetResource(const std::filesystem::path& path)
     {
-        auto it = m_resources.find(uuid);
-        if (it != m_resources.end())
+        auto it = m_resources.find(GetHash(path));
+        if (it !=  m_resources.end())
         {
             return std::dynamic_pointer_cast<T>(it->second);
         }
@@ -26,43 +33,88 @@ public:
     }
 
     template<typename T>
-    void AddResource(std::shared_ptr<T> resource)
+    SafePtr<T> AddResource(std::shared_ptr<T> resource)
     {
-        m_resources[GetHash(resource->GetPath())] = resource;
+         m_resources[GetHash(resource->GetPath())] = resource;
+        return resource;
     }
 
     template<typename T>
-    void RemoveResource(UUID uuid)
+    void RemoveResource(uint64_t hash)
     {
-        auto it = m_resources.find(uuid);
-        if (it != m_resources.end())
+        auto it =  m_resources.find(hash);
+        if (it !=  m_resources.end())
         {
-            m_resources.erase(it);
+             m_resources.erase(it);
         }
     }
 
     template<typename T>
     SafePtr<T> Load(const std::filesystem::path& resourcePath)
     {
-        static_assert(std::is_base_of_v<IResource, T>, "T must inherit from IResource");
+        static_assert(std::is_base_of_v<IResource, T>, "T must inherit...");
 
         uint64_t hash = GetHash(resourcePath);
 
-        auto it = m_resources.find(hash);
-        if (it != m_resources.end())
+        auto it =  m_resources.find(hash);
+        if (it !=  m_resources.end())
         {
             return std::dynamic_pointer_cast<T>(it->second);
         }
 
         std::shared_ptr<T> resource = std::make_shared<T>(resourcePath);
-        ThreadPool::Enqueue([resource]() {
-            resource->Load();
+        ThreadPool::Enqueue([resource, this, hash]() {
+            if (resource->IsLoaded())
+                return;
+            if (resource->Load(this))
+            {
+                resource->SetLoaded();
+                if (m_renderer->MultiThreadSendToGPU())
+                {
+                    ThreadPool::Enqueue([resource, this]() {
+                        if (resource->SendToGPU(m_renderer))
+                        {
+                            resource->SetSentToGPU();
+                        }
+                    });
+                }
+                else
+                {
+                    AddResourceToSend(hash);
+                }
+            }
         });
         AddResource(resource);
         return resource;
     }
-
-
+    
+    void UpdateResourceToSend()
+    {
+        if (m_resourceToSend.empty())
+            return;
+        
+        uint64_t hash = m_resourceToSend.front();
+        m_resourceToSend.pop();
+        
+        auto it = m_resources.find(hash);
+        if (it !=  m_resources.end())
+        {
+            if (it->second->IsLoaded() && !it->second->SentToGPU())
+            {
+                if (it->second->SendToGPU(m_renderer))
+                {
+                    std::cout << "Resource sent to GPU: " << it->second->GetPath() << '\n';
+                    it->second->SetSentToGPU();
+                }
+            }
+        }
+    }
+    
+    void AddResourceToSend(uint64_t hash)
+    {
+        m_resourceToSend.push(hash);
+    }
+    
     void Clear()
     {
         m_resources.clear();
@@ -72,6 +124,8 @@ private:
     {
         return std::filesystem::hash_value(resourcePath);
     }
-private:
+    
+    RHIRenderer* m_renderer;
     std::unordered_map<uint64_t, std::shared_ptr<IResource>> m_resources;
+    std::queue<uint64_t> m_resourceToSend;
 };

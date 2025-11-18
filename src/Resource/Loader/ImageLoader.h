@@ -1,3 +1,5 @@
+#pragma once
+#include <filesystem>
 #include <galaxymath/Maths.h>
 
 namespace ImageLoader

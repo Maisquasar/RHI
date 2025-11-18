@@ -7,7 +7,7 @@
 class VulkanDevice {
 public:
     VulkanDevice() = default;
-    ~VulkanDevice() = default;
+    ~VulkanDevice();
 
     bool Initialize(VkInstance instance, VkSurfaceKHR surface);
     void Cleanup();

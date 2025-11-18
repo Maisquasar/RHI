@@ -6,6 +6,11 @@
 #include <stdexcept>
 #include <string>
 
+VulkanCommandBuffer::~VulkanCommandBuffer()
+{
+    Cleanup();
+}
+
 bool VulkanCommandBuffer::Initialize(VulkanDevice* device, uint32_t imageCount)
 {
     if (!device || imageCount == 0)

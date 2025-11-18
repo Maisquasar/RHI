@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <string>
 
+VulkanDevice::~VulkanDevice()
+{
+    Cleanup();
+}
+
 bool VulkanDevice::Initialize(VkInstance instance, VkSurfaceKHR surface)
 {
     if (instance == VK_NULL_HANDLE || surface == VK_NULL_HANDLE)
@@ -283,8 +288,7 @@ void VulkanDevice::CreateLogicalDevice(VkSurfaceKHR surface)
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
-    // Enable any required features here
-    // deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
     const std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME

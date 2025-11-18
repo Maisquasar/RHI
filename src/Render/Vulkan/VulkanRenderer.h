@@ -34,11 +34,15 @@ public:
     void DrawFrame();
 
     bool IsInitialized() const { return m_initialized; }
-
+    
+    bool MultiThreadSendToGPU() override { return false; }
+    std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) override;
 private:
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void RecreateSwapChain();
 
+
+private:
     Window* m_window = nullptr;
     bool m_initialized = false;
     bool m_framebufferResized = false;

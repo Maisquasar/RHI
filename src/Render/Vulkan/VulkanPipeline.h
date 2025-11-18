@@ -11,7 +11,7 @@ class VulkanPipeline
 {
 public:
     VulkanPipeline() = default;
-    ~VulkanPipeline() = default;
+    ~VulkanPipeline();
 
     bool Initialize(VulkanDevice* device,
                     VkRenderPass renderPass,

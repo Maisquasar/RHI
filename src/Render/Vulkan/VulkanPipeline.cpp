@@ -14,6 +14,11 @@
 #include "VulkanUtils.h"
 #include "Resource/Mesh.h"
 
+VulkanPipeline::~VulkanPipeline()
+{
+    Cleanup();
+}
+
 bool VulkanPipeline::Initialize(VulkanDevice* device,
                                 VkRenderPass renderPass,
                                 VkExtent2D extent,
@@ -72,6 +77,7 @@ bool VulkanPipeline::Initialize(VulkanDevice* device,
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
         auto bindingDescription = VulkanUtils::To(Vertex::GetBindingDescription());
+        
         std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
         std::array<RHIVertexInputAttributeDescription, 4> descriptions = Vertex::GetAttributeDescriptions();
         for (size_t i = 0; i < attributeDescriptions.size(); ++i)
@@ -218,13 +224,20 @@ bool VulkanPipeline::Initialize(VulkanDevice* device,
 
 void VulkanPipeline::Cleanup()
 {
-    if (m_pipeline != VK_NULL_HANDLE && m_device)
+    if (!m_device)
+        return;
+    if (m_descriptorSetLayout != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorSetLayout(m_device->GetDevice(), m_descriptorSetLayout, nullptr);
+        m_descriptorSetLayout = VK_NULL_HANDLE;
+    }
+    if (m_pipeline != VK_NULL_HANDLE)
     {
         vkDestroyPipeline(m_device->GetDevice(), m_pipeline, nullptr);
         m_pipeline = VK_NULL_HANDLE;
     }
 
-    if (m_pipelineLayout != VK_NULL_HANDLE && m_device)
+    if (m_pipelineLayout != VK_NULL_HANDLE)
     {
         vkDestroyPipelineLayout(m_device->GetDevice(), m_pipelineLayout, nullptr);
         m_pipelineLayout = VK_NULL_HANDLE;

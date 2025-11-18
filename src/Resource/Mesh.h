@@ -1,15 +1,14 @@
 ﻿#pragma once
-#ifdef RENDER_API_VULKAN
 
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <memory>
 #include <array>
 #include <galaxymath/Maths.h>
 
+#include "IResource.h"
+#include "Render/RHI/RHIBuffer.h"
 #include "Render/RHI/RHIVertex.h"
 
-// Simple vertex structure
 struct Vertex
 {
     Vec3f position;
@@ -38,19 +37,19 @@ struct Vertex
 
         // Texture coordinates
         attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 2;
+        attributeDescriptions[1].location = 1;
         attributeDescriptions[1].format = RHIFormat::R32G32_F;
         attributeDescriptions[1].offset = offsetof(Vertex, texCoord);
 
         // Normal
         attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 3;
+        attributeDescriptions[2].location = 2;
         attributeDescriptions[2].format = RHIFormat::R32G32B32_F;
         attributeDescriptions[2].offset = offsetof(Vertex, normal);
         
         // Tangent
         attributeDescriptions[3].binding = 0;
-        attributeDescriptions[3].location = 4;
+        attributeDescriptions[3].location = 3;
         attributeDescriptions[3].format = RHIFormat::R32G32B32_F;
         attributeDescriptions[3].offset = offsetof(Vertex, tangent);
 
@@ -58,42 +57,24 @@ struct Vertex
     }
 };
 
-class VulkanDevice;
-class VulkanBuffer;
-
-class Mesh
+class Mesh : public IResource
 {
 public:
-    Mesh() = default;
-    ~Mesh();
+    Mesh(std::filesystem::path path) : IResource(std::move(path)) {}
+    Mesh(const Mesh&) = delete;
+    Mesh(Mesh&&) = delete;
+    Mesh& operator=(const Mesh&) = delete;
+    ~Mesh() override = default;
 
-    bool Initialize(VulkanDevice* device, const std::vector<Vertex>& vertices,
-                   const std::vector<uint32_t>& indices);
-    void Cleanup();
-
-    void Bind(VkCommandBuffer commandBuffer);
-    void Draw(VkCommandBuffer commandBuffer);
-
-    uint32_t GetVertexCount() const { return static_cast<uint32_t>(m_vertices.size()); }
-    uint32_t GetIndexCount() const { return static_cast<uint32_t>(m_indices.size()); }
-
-    // Helper to create simple shapes
-    static Mesh* CreateTriangle(VulkanDevice* device);
-    static Mesh* CreateQuad(VulkanDevice* device);
-    static Mesh* CreateCube(VulkanDevice* device);
+    bool Load(ResourceManager* resourceManager) override;
+    bool SendToGPU(RHIRenderer* renderer) override;
+    void Unload() override;
 
 private:
-    bool CreateVertexBuffer();
-    bool CreateIndexBuffer();
-    VkCommandBuffer BeginSingleTimeCommands();
-    void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
-
-    VulkanDevice* m_device = nullptr;
+    friend class Model;
     std::vector<Vertex> m_vertices;
     std::vector<uint32_t> m_indices;
 
-    std::unique_ptr<VulkanBuffer> m_vertexBuffer;
-    std::unique_ptr<VulkanBuffer> m_indexBuffer;
+    std::unique_ptr<RHIBuffer> m_vertexBuffer;
+    std::unique_ptr<RHIBuffer> m_indexBuffer;
 };
-
-#endif

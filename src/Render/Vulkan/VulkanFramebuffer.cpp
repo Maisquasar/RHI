@@ -1,12 +1,19 @@
 ﻿#include "VulkanFramebuffer.h"
 #ifdef RENDER_API_VULKAN
 
+#include <array>
+
 #include "VulkanDevice.h"
 #include <iostream>
 #include <stdexcept>
 #include <string>
 
 #include "VulkanDepthBuffer.h"
+
+VulkanFramebuffer::~VulkanFramebuffer()
+{
+    Cleanup();
+}
 
 bool VulkanFramebuffer::Initialize(VulkanDevice* device, VkRenderPass renderPass,
                                    const std::vector<VkImageView>& imageViews, VkExtent2D extent, VulkanDepthBuffer* depthBuffer)
@@ -24,7 +31,7 @@ bool VulkanFramebuffer::Initialize(VulkanDevice* device, VkRenderPass renderPass
     {
         for (size_t i = 0; i < imageViews.size(); i++)
         {
-            VkImageView attachments[] = {
+            std::array<VkImageView, 2> attachments = {
                 imageViews[i],
                 depthBuffer->GetImageView()
             };
@@ -32,8 +39,8 @@ bool VulkanFramebuffer::Initialize(VulkanDevice* device, VkRenderPass renderPass
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass;
-            framebufferInfo.attachmentCount = 2;
-            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferInfo.pAttachments = attachments.data();
             framebufferInfo.width = extent.width;
             framebufferInfo.height = extent.height;
             framebufferInfo.layers = 1;

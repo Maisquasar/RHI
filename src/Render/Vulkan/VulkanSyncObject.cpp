@@ -6,7 +6,11 @@
 #include <stdexcept>
 #include <string>
 
-VulkanSyncObjects::~VulkanSyncObjects() = default;
+VulkanSyncObjects::~VulkanSyncObjects()
+{
+    Cleanup();
+}
+
 
 bool VulkanSyncObjects::Initialize(VulkanDevice* device, uint32_t maxFramesInFlight)
 {

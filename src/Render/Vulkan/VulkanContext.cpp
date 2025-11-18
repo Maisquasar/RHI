@@ -1,5 +1,4 @@
 ﻿#include "VulkanContext.h"
-
 #include "Core/Window.h"
 
 #include <stdexcept>
@@ -7,39 +6,47 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <algorithm>
+
+VulkanContext::~VulkanContext()
+{
+    Cleanup();
+}
 
 bool VulkanContext::Initialize(Window* window)
 {
     if (!window)
     {
-        std::cerr << "Invalid window pointer!" << std::endl;
+        LogError("Invalid window pointer!");
         return false;
     }
 
     try
     {
-        CreateInstance(window);
-
-        if (m_enableValidationLayers)
+        if (!CreateInstance(window))
         {
-            CreateDebugMessenger();
-        }
-
-        CreateSurface(window);
-
-        if (m_surface == VK_NULL_HANDLE)
-        {
-            std::cerr << "Failed to create Vulkan surface!" << std::endl;
             Cleanup();
             return false;
         }
 
-        std::cout << "Vulkan context initialized successfully" << std::endl;
+        if (m_enableValidationLayers && !CreateDebugMessenger())
+        {
+            Cleanup();
+            return false;
+        }
+
+        if (!CreateSurface(window))
+        {
+            Cleanup();
+            return false;
+        }
+
+        LogInfo("Vulkan context initialized successfully");
         return true;
     }
     catch (const std::exception& e)
     {
-        std::cerr << "VulkanContext initialization failed: " << e.what() << std::endl;
+        LogError(std::string("VulkanContext initialization failed: ") + e.what());
         Cleanup();
         return false;
     }
@@ -57,54 +64,12 @@ void VulkanContext::Cleanup()
     }
 }
 
-std::vector<const char*> VulkanContext::GetRequiredExtensions(Window* window) const
-{
-    std::vector<const char*> extensions = window->GetRequiredExtensions();
-    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-
-    if (m_enableValidationLayers)
-    {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    }
-    return extensions;
-}
-
-
-bool VulkanContext::CheckExtensionSupport(const std::vector<const char*>& requiredExtensions) const
-{
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
-
-    for (const char* required : requiredExtensions)
-    {
-        bool found = false;
-        for (const auto& available : availableExtensions)
-        {
-            if (strcmp(required, available.extensionName) == 0)
-            {
-                found = true;
-                break;
-            }
-        }
-        
-        if (!found)
-        {
-            std::cerr << "Required extension not available: " << required << std::endl;
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void VulkanContext::CreateInstance(Window* window)
+bool VulkanContext::CreateInstance(Window* window)
 {
     if (m_enableValidationLayers && !CheckValidationLayerSupport())
     {
-        throw std::runtime_error("Validation layers requested, but not available!");
+        LogError("Validation layers requested, but not available!");
+        return false;
     }
     
     std::string appName = window->GetTitle();
@@ -125,7 +90,8 @@ void VulkanContext::CreateInstance(Window* window)
     
     if (!CheckExtensionSupport(extensions))
     {
-        throw std::runtime_error("Required Vulkan extensions not available!");
+        LogError("Required Vulkan extensions not available!");
+        return false;
     }
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -146,14 +112,136 @@ void VulkanContext::CreateInstance(Window* window)
         createInfo.pNext = nullptr;
     }
 
+#if defined(__APPLE__)
     createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
     VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
     if (result != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create Vulkan instance! Error code: " + 
-                                 std::to_string(result));
+        LogError("Failed to create Vulkan instance! Error code: " + VkResultToString(result));
+        return false;
     }
+
+    return true;
+}
+
+bool VulkanContext::CreateSurface(Window* window)
+{
+    if (m_instance == VK_NULL_HANDLE)
+    {
+        LogError("Cannot create surface: instance is null!");
+        return false;
+    }
+
+    m_surface = window->CreateSurface(m_instance);
+
+    if (m_surface == VK_NULL_HANDLE)
+    {
+        LogError("Failed to create Vulkan surface!");
+        return false;
+    }
+
+    return true;
+}
+
+bool VulkanContext::CreateDebugMessenger()
+{
+    if (!m_enableValidationLayers || m_instance == VK_NULL_HANDLE)
+    {
+        return true;
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+    PopulateDebugMessengerCreateInfo(createInfo);
+
+    auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT"));
+    
+    if (!func)
+    {
+        LogError("Failed to load vkCreateDebugUtilsMessengerEXT function!");
+        return false;
+    }
+
+    VkResult result = func(m_instance, &createInfo, nullptr, &m_debugMessenger);
+    if (result != VK_SUCCESS)
+    {
+        LogError("Failed to set up debug messenger! Error code: " + VkResultToString(result));
+        return false;
+    }
+
+    return true;
+}
+
+void VulkanContext::DestroySurface()
+{
+    if (m_surface == VK_NULL_HANDLE || m_instance == VK_NULL_HANDLE)
+        return;
+
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+    m_surface = VK_NULL_HANDLE;
+}
+
+void VulkanContext::DestroyDebugMessenger()
+{
+    if (m_debugMessenger == VK_NULL_HANDLE || m_instance == VK_NULL_HANDLE)
+        return;
+
+    auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
+    
+    if (func != nullptr)
+    {
+        func(m_instance, m_debugMessenger, nullptr);
+        m_debugMessenger = VK_NULL_HANDLE;
+    }
+}
+
+std::vector<const char*> VulkanContext::GetRequiredExtensions(Window* window) const
+{
+    std::vector<const char*> extensions = window->GetRequiredExtensions();
+#if defined(__APPLE__)
+    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+#endif
+
+    if (m_enableValidationLayers)
+    {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    
+    return extensions;
+}
+
+bool VulkanContext::CheckExtensionSupport(const std::vector<const char*>& requiredExtensions) const
+{
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    if (extensionCount == 0)
+    {
+        LogError("No Vulkan extensions available!");
+        return false;
+    }
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
+
+    for (const char* required : requiredExtensions)
+    {
+        bool found = std::any_of(availableExtensions.begin(), availableExtensions.end(),
+            [required](const VkExtensionProperties& ext) {
+                return strcmp(required, ext.extensionName) == 0;
+            });
+        
+        if (!found)
+        {
+            LogError(std::string("Required extension not available: ") + required);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool VulkanContext::CheckValidationLayerSupport() const
@@ -161,26 +249,42 @@ bool VulkanContext::CheckValidationLayerSupport() const
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
+    if (layerCount == 0)
+    {
+        return false;
+    }
+
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (const char* layerName : m_validationLayers)
     {
-        bool layerFound = false;
-        for (const auto& layerProperties : availableLayers)
-        {
-            if (strcmp(layerName, layerProperties.layerName) == 0)
-            {
-                layerFound = true;
-                break;
-            }
-        }
+        bool layerFound = std::any_of(availableLayers.begin(), availableLayers.end(),
+            [layerName](const VkLayerProperties& layer) {
+                return strcmp(layerName, layer.layerName) == 0;
+            });
+        
         if (!layerFound)
         {
             return false;
         }
     }
+    
     return true;
+}
+
+void VulkanContext::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) const
+{
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = DebugCallback;
+    createInfo.pUserData = nullptr;
 }
 
 VkBool32 VulkanContext::DebugCallback(
@@ -211,78 +315,46 @@ VkBool32 VulkanContext::DebugCallback(
     return VK_FALSE;
 }
 
-void VulkanContext::CreateDebugMessenger()
+// Private helper methods
+void VulkanContext::LogError(const std::string& message) const
 {
-    if (!m_enableValidationLayers || m_instance == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-    PopulateDebugMessengerCreateInfo(createInfo);
-
-    auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-        vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT"));
-    
-    if (!func)
-    {
-        throw std::runtime_error("Failed to load vkCreateDebugUtilsMessengerEXT function!");
-    }
-
-    VkResult result = func(m_instance, &createInfo, nullptr, &m_debugMessenger);
-    if (result != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to set up debug messenger! Error code: " + 
-                                 std::to_string(result));
-    }
+    std::cerr << "[VulkanContext ERROR] " << message << std::endl;
 }
 
-void VulkanContext::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) const
+void VulkanContext::LogInfo(const std::string& message) const
 {
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = DebugCallback;
-    createInfo.pUserData = nullptr;
+    std::cout << "[VulkanContext INFO] " << message << std::endl;
 }
 
-void VulkanContext::DestroyDebugMessenger()
+std::string VulkanContext::VkResultToString(VkResult result) const
 {
-    if (m_debugMessenger == VK_NULL_HANDLE || m_instance == VK_NULL_HANDLE)
-        return;
-
-    auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-        vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
-    if (func != nullptr)
+    switch (result)
     {
-        func(m_instance, m_debugMessenger, nullptr);
-        m_debugMessenger = VK_NULL_HANDLE;
+        case VK_SUCCESS: return "VK_SUCCESS";
+        case VK_NOT_READY: return "VK_NOT_READY";
+        case VK_TIMEOUT: return "VK_TIMEOUT";
+        case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+        case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
+        case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
+        default: return "UNKNOWN_ERROR (" + std::to_string(result) + ")";
     }
-}
-
-void VulkanContext::CreateSurface(Window* window)
-{
-    if (m_instance == VK_NULL_HANDLE)
-        return;
-
-    m_surface = window->CreateSurface(m_instance);
-
-    if (m_surface == VK_NULL_HANDLE)
-    {
-        throw std::runtime_error("Failed to create Vulkan surface!");
-    }
-}
-
-void VulkanContext::DestroySurface()
-{
-    if (m_surface == VK_NULL_HANDLE)
-        return;
-
-    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-    m_surface = VK_NULL_HANDLE;
 }

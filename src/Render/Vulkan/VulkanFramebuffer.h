@@ -11,7 +11,7 @@ class VulkanFramebuffer
 {
 public:
     VulkanFramebuffer() = default;
-    ~VulkanFramebuffer() = default;
+    ~VulkanFramebuffer();
 
     bool Initialize(VulkanDevice* device, VkRenderPass renderPass,
                     const std::vector<VkImageView>& imageViews, VkExtent2D extent, VulkanDepthBuffer* depthBuffer);

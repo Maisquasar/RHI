@@ -1,9 +1,13 @@
 ﻿#include <iostream>
 
 #include "Core/Window.h"
+
 #include "Render/RHI/RHIRenderer.h"
-#include "Resource/Model.h"
+
 #include "Resource/ResourceManager.h"
+#include "Resource/Model.h"
+#include "Resource/Texture.h"
+
 #include "Utils/Type.h"
 
 int Run(int argc, char** argv, char** envp)
@@ -31,25 +35,40 @@ int Run(int argc, char** argv, char** envp)
     }
 
     ThreadPool::Initialize();
-    ResourceManager resourceManager;
-    SafePtr<Model> cubeModel = resourceManager.Load<Model>("resources/models/Cube.obj");
+    
+    std::unique_ptr<ResourceManager> resourceManager = std::make_unique<ResourceManager>();
+    resourceManager->Initialize(renderer.get());
+    SafePtr<Model> cubeModel = resourceManager->Load<Model>("resources/models/Cube.obj");
+    SafePtr<Texture> debugTexture = resourceManager->Load<Texture>("resources/textures/debug.jpeg");
 
-    window->SetVSync(true);
-    window->SetMouseCursorType(CursorType::Hand);
+    // window->SetVSync(true);
+    // window->SetMouseCursorType(CursorType::Hand);
 
     while (!window->ShouldClose())
     {
         window->PollEvents();
+        
+        resourceManager->UpdateResourceToSend();
 
         renderer->DrawFrame();
     }
 
     ThreadPool::Terminate();
     
+    resourceManager->Clear();
+    
+    renderer->Cleanup();
+    
     window->Terminate();
 
     return 0;
 }
+
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 #if defined(_WIN32) && defined(NDEBUG)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)

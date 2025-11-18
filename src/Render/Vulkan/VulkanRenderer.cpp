@@ -32,7 +32,6 @@ bool VulkanRenderer::Initialize(Window* window)
 
     try
     {
-        // Initialize Vulkan context
         m_context = std::make_unique<VulkanContext>();
         if (!m_context->Initialize(window))
         {
@@ -47,7 +46,6 @@ bool VulkanRenderer::Initialize(Window* window)
             return false;
         }
 
-        // Initialize swap chain
         m_swapChain = std::make_unique<VulkanSwapChain>();
         if (!m_swapChain->Initialize(m_device.get(), m_context->GetSurface(), window))
         {
@@ -55,7 +53,6 @@ bool VulkanRenderer::Initialize(Window* window)
             return false;
         }
 
-        // Initialize render pass
         m_renderPass = std::make_unique<VulkanRenderPass>();
         if (!m_renderPass->Initialize(m_device.get(), m_swapChain->GetImageFormat()))
         {
@@ -77,7 +74,6 @@ bool VulkanRenderer::Initialize(Window* window)
         samplerLayoutBinding.pImmutableSamplers = nullptr;
         samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        // Initialize graphics pipeline
         m_pipeline = std::make_unique<VulkanPipeline>();
         if (!m_pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(),
                                     m_swapChain->GetExtent(),
@@ -88,8 +84,7 @@ bool VulkanRenderer::Initialize(Window* window)
             std::cerr << "Failed to initialize pipeline!" << std::endl;
             return false;
         }
-
-        // Initialize depth buffer
+        
         m_depthBuffer = std::make_unique<VulkanDepthBuffer>();
         if (!m_depthBuffer->Initialize(m_device.get(), m_swapChain->GetExtent()))
         {
@@ -97,7 +92,6 @@ bool VulkanRenderer::Initialize(Window* window)
             return false;
         }
 
-        // Initialize framebuffers
         m_framebuffer = std::make_unique<VulkanFramebuffer>();
         if (!m_framebuffer->Initialize(m_device.get(), m_renderPass->GetRenderPass(),
                                        m_swapChain->GetImageViews(),
@@ -107,7 +101,6 @@ bool VulkanRenderer::Initialize(Window* window)
             return false;
         }
 
-        // Initialize command buffers
         m_commandBuffer = std::make_unique<VulkanCommandBuffer>();
         if (!m_commandBuffer->Initialize(m_device.get(), MAX_FRAMES_IN_FLIGHT))
         {
@@ -115,7 +108,6 @@ bool VulkanRenderer::Initialize(Window* window)
             return false;
         }
 
-        // Initialize synchronization objects
         m_syncObjects = std::make_unique<VulkanSyncObjects>();
         if (!m_syncObjects->Initialize(m_device.get(), MAX_FRAMES_IN_FLIGHT))
         {
@@ -151,14 +143,11 @@ void VulkanRenderer::Cleanup()
     m_syncObjects.reset();
     m_commandBuffer.reset();
     m_framebuffer.reset();
+    m_depthBuffer.reset();
     m_pipeline.reset();
     m_renderPass.reset();
     m_swapChain.reset();
-    if (m_device)
-    {
-        m_device->Cleanup();
-        m_device.reset();
-    }
+    m_device.reset();
     m_context.reset();
 
     m_initialized = false;
@@ -255,12 +244,21 @@ void VulkanRenderer::DrawFrame()
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Image& image)
+{
+    auto texture = std::make_unique<VulkanTexture>();
+    texture->LoadFromImage(image, m_device.get(), m_commandBuffer->GetCommandPool(), m_device->GetGraphicsQueue());
+    return texture;
+}
+
 void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
     // Begin render pass
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    std::vector<VkClearValue> clearValues(2);
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
     m_renderPass->Begin(commandBuffer, m_framebuffer->GetFramebuffer(imageIndex),
-                       m_swapChain->GetExtent(), clearColor);
+                       m_swapChain->GetExtent(), clearValues);
 
     // Bind pipeline
     m_pipeline->Bind(commandBuffer);

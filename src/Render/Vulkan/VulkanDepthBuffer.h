@@ -18,12 +18,12 @@ public:
     VkImageView GetImageView() const { return m_depthImageView; }
     VkFormat GetDepthFormat() const { return m_depthFormat; }
 
+    static VkFormat FindDepthFormat(VulkanDevice* device);
+    static VkFormat FindSupportedFormat(VulkanDevice* device,
+                                        const std::vector<VkFormat>& candidates,
+                                        VkImageTiling tiling,
+                                        VkFormatFeatureFlags features);
 private:
-    VkFormat FindDepthFormat(VulkanDevice* device);
-    VkFormat FindSupportedFormat(VulkanDevice* device,
-                                 const std::vector<VkFormat>& candidates,
-                                 VkImageTiling tiling,
-                                 VkFormatFeatureFlags features);
     
     bool HasStencilComponent(VkFormat format);
     

@@ -1,8 +1,12 @@
 ﻿#pragma once
+#include <atomic>
 #include <filesystem>
 #include <string>
 
 #include "Core/UUID.h"
+
+class ResourceManager;
+class RHIRenderer;
 
 class IResource
 {
@@ -13,14 +17,17 @@ public:
     IResource& operator=(const IResource&) = delete;
     virtual ~IResource() = default;
 
-    virtual void Load() = 0;
-    virtual void SendToGPU() = 0;
+    virtual bool Load(ResourceManager* resourceManager) = 0;
+    virtual bool SendToGPU(RHIRenderer* renderer) = 0;
     virtual void Unload() = 0;
 
     UUID GetUUID() const { return p_uuid; }
     std::filesystem::path GetPath() const { return p_path; }
     bool IsLoaded() const { return p_isLoaded; }
     bool SentToGPU() const { return p_sendToGPU; }
+    
+    void SetLoaded() { p_isLoaded = true; }
+    void SetSentToGPU() { p_sendToGPU = true; }
 protected:    
     std::filesystem::path p_path;
     UUID p_uuid;

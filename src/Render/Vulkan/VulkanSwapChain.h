@@ -12,7 +12,7 @@ class VulkanSwapChain
 {
 public:
     VulkanSwapChain() = default;
-    ~VulkanSwapChain() = default;
+    ~VulkanSwapChain();
 
     bool Initialize(VulkanDevice* device, VkSurfaceKHR surface, Window* window);
     void Cleanup();

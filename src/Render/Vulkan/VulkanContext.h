@@ -1,9 +1,10 @@
 ﻿#pragma once
 #ifdef RENDER_API_VULKAN
 #include <vector>
+#include <string>
+
 #include <vulkan/vulkan_core.h>
 
-#include "VulkanDevice.h"
 #include "Render/RHI/RHIContext.h"
 
 class VulkanContext : public RHIContext
@@ -13,7 +14,7 @@ public:
     VulkanContext& operator=(const VulkanContext& other) = default;
     VulkanContext(const VulkanContext&) = default;
     VulkanContext(VulkanContext&&) noexcept = default;
-    ~VulkanContext() = default;
+    ~VulkanContext() override;
 
     bool Initialize(Window* window) override;
     void Cleanup() override;
@@ -24,7 +25,7 @@ public:
     VkInstance GetInstance() const { return m_instance; }
     VkSurfaceKHR GetSurface() const { return m_surface; }
 private:
-    void CreateInstance(Window* window);
+    bool CreateInstance(Window* window);
     bool CheckValidationLayerSupport() const;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
@@ -33,11 +34,15 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
     
-    void CreateDebugMessenger();
+    void LogError(const std::string& message) const;
+    void LogInfo(const std::string& message) const;
+    std::string VkResultToString(VkResult result) const;
+
+    bool CreateDebugMessenger();
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) const;
     void DestroyDebugMessenger();
 
-    void CreateSurface(Window* window);
+    bool CreateSurface(Window* window);
     void DestroySurface();
 
 private:

@@ -8,6 +8,11 @@
 #include <limits>
 #include <stdexcept>
 
+VulkanSwapChain::~VulkanSwapChain()
+{
+    Cleanup();
+}
+
 bool VulkanSwapChain::Initialize(VulkanDevice* device, VkSurfaceKHR surface, Window* window)
 {
     if (!device || surface == VK_NULL_HANDLE || !window)

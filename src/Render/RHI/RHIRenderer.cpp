@@ -20,6 +20,7 @@ std::unique_ptr<RHIRenderer> RHIRenderer::Create(RenderAPI api, Window* window)
         break;
     }
 
+    renderer->m_renderAPI = api;
     if (renderer)
         renderer->Initialize(window);
     
