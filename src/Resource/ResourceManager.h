@@ -13,6 +13,7 @@
 #include "Resource/Model.h"
 
 
+class Texture;
 class RHIRenderer;
 
 class ResourceManager
@@ -23,7 +24,7 @@ public:
     void Initialize(RHIRenderer* renderer);
     
     template<typename T>
-    std::shared_ptr<T> GetResource(const std::filesystem::path& path)
+    std::shared_ptr<T> GetResource(const std::filesystem::path& path) const
     {
         auto it = m_resources.find(GetHash(path));
         if (it !=  m_resources.end())
@@ -34,7 +35,7 @@ public:
     }
     
     template <typename T>
-    std::shared_ptr<T> GetResource(uint64_t hash)
+    std::shared_ptr<T> GetResource(uint64_t hash) const
     {
         auto it = m_resources.find(hash);
         if (it !=  m_resources.end())
@@ -62,7 +63,7 @@ public:
     }
 
     template<typename T>
-    SafePtr<T> Load(const std::filesystem::path& resourcePath)
+    SafePtr<T> Load(const std::filesystem::path& resourcePath, bool multiThread = true)
     {
         static_assert(std::is_base_of_v<IResource, T>, "T must inherit...");
 
@@ -75,16 +76,35 @@ public:
         }
 
         std::shared_ptr<T> resource = std::make_shared<T>(resourcePath);
-        ThreadPool::Enqueue([resource, this, hash]() {
-            if (resource->IsLoaded())
-                return;
+        if (multiThread)
+        {
+            ThreadPool::Enqueue([resource, this, hash]() {
+                if (resource->IsLoaded())
+                    return;
+                if (resource->Load(this))
+                {
+                    PrintLog("Resource %s loaded", resource->GetPath().generic_string().c_str());
+                    resource->SetLoaded();
+                    AddResourceToSend(hash);
+                }
+            });
+        }
+        else
+        {
             if (resource->Load(this))
             {
                 PrintLog("Resource %s loaded", resource->GetPath().generic_string().c_str());
                 resource->SetLoaded();
-                AddResourceToSend(hash);
+                if (resource->SendToGPU(m_renderer))
+                {
+                    resource->SetSentToGPU();
+                }
+                else
+                {
+                    AddResourceToSend(hash);
+                }
             }
-        });
+        }
         AddResource(resource);
         return resource;
     }
@@ -139,6 +159,10 @@ public:
     {
         m_resources.clear();
     }
+    
+    void LoadDefaultTexture(const std::filesystem::path& resourcePath);
+    std::shared_ptr<Texture> GetDefaultTexture() const;
+
 private:
     static uint64_t GetHash(const std::filesystem::path& resourcePath)
     {
@@ -148,4 +172,5 @@ private:
     RHIRenderer* m_renderer;
     std::unordered_map<uint64_t, std::shared_ptr<IResource>> m_resources;
     std::queue<uint64_t> m_resourceToSend;
+    uint64_t m_defaultTexture;
 };

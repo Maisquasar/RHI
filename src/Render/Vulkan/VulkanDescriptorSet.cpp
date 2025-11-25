@@ -72,6 +72,10 @@ void VulkanDescriptorSet::UpdateDescriptorSet(uint32_t index, VulkanUniformBuffe
 
     // Update texture sampler descriptor (if provided)
     VkDescriptorImageInfo imageInfo{};
+    if (!texture)
+    {
+        texture = m_device->GetDefaultTexture();
+    }
     if (texture)
     {
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

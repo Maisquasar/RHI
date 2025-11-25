@@ -4,6 +4,8 @@
 #include <optional>
 #include <vector>
 
+class VulkanTexture;
+
 class VulkanDevice {
 public:
     VulkanDevice() = default;
@@ -33,6 +35,9 @@ public:
     
     VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool);
     void EndSingleTimeCommands(VkCommandPool commandPool, VkQueue queue, VkCommandBuffer commandBuffer);
+
+    void SetDefaultTexture(VulkanTexture* texture) { m_defaultTexture = texture; }
+    VulkanTexture* GetDefaultTexture() const { return m_defaultTexture; }
 private:
     bool PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
     int RateDeviceSuitability(VkPhysicalDevice device) const;
@@ -40,12 +45,13 @@ private:
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device) const;
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) const;
     void CreateLogicalDevice(VkSurfaceKHR surface);
-
 private:
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
     VkDevice m_device = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
     VkQueue m_presentQueue = VK_NULL_HANDLE;
+    
+    VulkanTexture* m_defaultTexture = nullptr;
 
     QueueFamilyIndices m_queueFamilies;
 

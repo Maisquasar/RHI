@@ -4,7 +4,9 @@
 #include "RHIIndexBuffer.h"
 #include "RHITexture.h"
 #include "RHIVertexBuffer.h"
+#include "Utils/Type.h"
 
+class Texture;
 class Window;
 
 namespace ImageLoader
@@ -30,6 +32,7 @@ public:
     static std::unique_ptr<RHIRenderer> Create(RenderAPI api, Window* window);
 
     virtual bool Initialize(Window* window) = 0;
+    virtual void WaitForGPU() = 0;
     virtual void Cleanup() = 0;
     
     virtual void DrawFrame() = 0;
@@ -38,6 +41,8 @@ public:
     virtual std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) = 0;
     virtual std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) = 0;
     virtual std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) = 0;
+    
+    virtual void SetDefaultTexture(const SafePtr<Texture>& texture) = 0;
     
 private:
     RenderAPI m_renderAPI;

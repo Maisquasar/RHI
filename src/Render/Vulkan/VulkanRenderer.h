@@ -47,6 +47,7 @@ public:
     ~VulkanRenderer() override;
 
     bool Initialize(Window* window) override;
+    void WaitForGPU() override;
     void Cleanup() override;
 
     void BeginFrame();
@@ -56,10 +57,12 @@ public:
 
     bool IsInitialized() const { return m_initialized; }
     
-    bool MultiThreadSendToGPU() override { return false; }
+    bool MultiThreadSendToGPU() override { return true; }
     std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) override;
     std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) override;
     std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) override;
+    
+    void SetDefaultTexture(const SafePtr<Texture>& texture) override;
 
     void SetModel(const SafePtr<Model>& model);
     void SetTexture(const SafePtr<Texture>& texture);

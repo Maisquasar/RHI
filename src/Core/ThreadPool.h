@@ -3,7 +3,7 @@
 
 #include <BS_thread_pool.hpp>
 
-// #define MULTI_THREAD
+#define MULTI_THREAD
 class ThreadPool
 {
 public:
@@ -19,12 +19,7 @@ public:
     template <typename F, typename R = std::invoke_result_t<std::decay_t<F>>>
     static std::future<R> Enqueue(F&& task)
     {
-#ifdef MULTI_THREAD
         return s_instance->m_threadPool->submit_task(std::forward<F>(task));
-#else
-        task();
-        return {};
-#endif
     }
 
 private:

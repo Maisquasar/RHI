@@ -18,7 +18,7 @@ bool VulkanDevice::Initialize(VkInstance instance, VkSurfaceKHR surface)
 {
     if (instance == VK_NULL_HANDLE || surface == VK_NULL_HANDLE)
     {
-        std::cerr << "Invalid instance or surface handle" << std::endl;
+        PrintError("Invalid instance or surface handle");
         return false;
     }
 
@@ -33,7 +33,7 @@ bool VulkanDevice::Initialize(VkInstance instance, VkSurfaceKHR surface)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "VulkanDevice initialization failed: " << e.what() << std::endl;
+        PrintError("VulkanDevice initialization failed: %s", e.what());
         return false;
     }
 }
@@ -139,7 +139,7 @@ bool VulkanDevice::PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface)
 
     if (selectedDevice == VK_NULL_HANDLE)
     {
-        std::cerr << "Failed to find a suitable GPU!" << std::endl;
+        PrintError("Failed to find a suitable GPU!");
         return false;
     }
 

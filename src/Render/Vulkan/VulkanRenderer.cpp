@@ -185,13 +185,16 @@ bool VulkanRenderer::Initialize(Window* window)
     }
 }
 
-void VulkanRenderer::Cleanup()
+void VulkanRenderer::WaitForGPU()
 {
     if (m_device)
     {
         vkDeviceWaitIdle(m_device->GetDevice());
     }
+}
 
+void VulkanRenderer::Cleanup()
+{
     m_syncObjects.reset();
     m_commandBuffer.reset();
     m_descriptorSet.reset();
@@ -417,6 +420,15 @@ std::unique_ptr<RHIIndexBuffer> VulkanRenderer::CreateIndexBuffer(const uint32_t
     indexBuffer->SetIndexCount(size);
 
     return std::move(indexBuffer);
+}
+
+void VulkanRenderer::SetDefaultTexture(const SafePtr<Texture>& texture)
+{
+    if (!m_device)
+    {
+        PrintError("Failed to set default texture because device is not valid");
+    }
+    m_device->SetDefaultTexture(dynamic_cast<VulkanTexture*>(texture->GetBuffer()));
 }
 
 void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)

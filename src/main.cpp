@@ -40,11 +40,14 @@ int Run(int argc, char** argv, char** envp)
 
     std::unique_ptr<ResourceManager> resourceManager = std::make_unique<ResourceManager>();
     resourceManager->Initialize(renderer.get());
+    resourceManager->LoadDefaultTexture("resources/textures/debug.jpeg");
+    renderer->SetDefaultTexture(resourceManager->GetDefaultTexture());
+    
     SafePtr<Model> cubeModel = resourceManager->Load<Model>("resources/models/Cube.obj");
-    SafePtr<Texture> debugTexture = resourceManager->Load<Texture>("resources/textures/debug.jpeg");
+    SafePtr<Texture> cubeTexture = resourceManager->Load<Texture>("resources/textures/grid.png");
 
     dynamic_cast<VulkanRenderer*>(renderer.get())->SetModel(cubeModel);
-    dynamic_cast<VulkanRenderer*>(renderer.get())->SetTexture(debugTexture);
+    dynamic_cast<VulkanRenderer*>(renderer.get())->SetTexture(cubeTexture);
 
     while (!window->ShouldClose())
     {
@@ -54,12 +57,13 @@ int Run(int argc, char** argv, char** envp)
 
         renderer->DrawFrame();
     }
+    
+    // Wait for GPU to finish rendering before cleaning
+    renderer->WaitForGPU();
+    resourceManager->Clear();
+    renderer->Cleanup();
 
     ThreadPool::Terminate();
-
-    resourceManager->Clear();
-
-    renderer->Cleanup();
 
     window->Terminate();
 
