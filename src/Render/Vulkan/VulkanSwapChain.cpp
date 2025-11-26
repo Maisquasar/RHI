@@ -124,7 +124,6 @@ VulkanSwapChain::SwapChainSupportDetails VulkanSwapChain::QuerySwapChainSupport(
 
 VkSurfaceFormatKHR VulkanSwapChain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
-    // Prefer SRGB if available
     for (const auto& format : availableFormats)
     {
         if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
@@ -133,14 +132,11 @@ VkSurfaceFormatKHR VulkanSwapChain::ChooseSwapSurfaceFormat(const std::vector<Vk
             return format;
         }
     }
-
-    // Fall back to first available format
     return availableFormats[0];
 }
 
 VkPresentModeKHR VulkanSwapChain::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
 {
-    // Prefer mailbox (triple buffering) for smooth rendering
     for (const auto& mode : availablePresentModes)
     {
         if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -149,7 +145,6 @@ VkPresentModeKHR VulkanSwapChain::ChooseSwapPresentMode(const std::vector<VkPres
         }
     }
 
-    // FIFO is guaranteed to be available
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 
@@ -179,6 +174,8 @@ VkExtent2D VulkanSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& cap
 
 void VulkanSwapChain::CreateSwapChain(Window* window)
 {
+    bool isWindowTransparent = window->IsTransparentEnabled();
+    
     SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(
         m_device->GetPhysicalDevice(), m_surface);
 
@@ -224,7 +221,64 @@ void VulkanSwapChain::CreateSwapChain(Window* window)
     }
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    
+    // Select composite alpha mode based on window transparency setting
+    VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    
+    if (isWindowTransparent)
+    {
+        VkCompositeAlphaFlagBitsKHR transparentModes[] = {
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        };
+        
+        bool foundTransparentMode = false;
+        for (auto mode : transparentModes)
+        {
+            if (swapChainSupport.capabilities.supportedCompositeAlpha & mode)
+            {
+                compositeAlpha = mode;
+                foundTransparentMode = true;
+                PrintLog("Window transparency enabled: using composite alpha mode");
+                break;
+            }
+        }
+        
+        if (!foundTransparentMode)
+        {
+            PrintWarning("Window transparency requested but not supported by Vulkan driver!");
+            PrintWarning("Falling back to OPAQUE mode. Consider using window-level opacity instead.");
+        }
+    }
+    else
+    {
+        if (swapChainSupport.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+        {
+            compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        }
+        else
+        {
+            // Fallback: use first available mode
+            VkCompositeAlphaFlagBitsKHR allModes[] = {
+                VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+                VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+            };
+            
+            for (auto mode : allModes)
+            {
+                if (swapChainSupport.capabilities.supportedCompositeAlpha & mode)
+                {
+                    compositeAlpha = mode;
+                    break;
+                }
+            }
+        }
+    }
+    
+    createInfo.compositeAlpha = compositeAlpha;
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;

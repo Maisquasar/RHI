@@ -134,6 +134,7 @@ bool VulkanDevice::PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface)
                 bestScore = score;
                 selectedDevice = device;
             }
+            break;
         }
     }
 

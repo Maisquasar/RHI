@@ -1,6 +1,6 @@
 #pragma once
 #include <filesystem>
-#include <Maths.h>
+#include <galaxymath/Maths.h>
 
 class MTLLoader
 {

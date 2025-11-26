@@ -21,6 +21,7 @@ int Run(int argc, char** argv, char** envp)
     WindowConfig config;
     config.title = "Window Test";
     config.size = Vec2i(1280, 720);
+    config.attributes = static_cast<WindowAttributes>(VSync | Transparent | NoDecoration);
     std::unique_ptr<Window> window = Window::Create(WindowAPI::GLFW, RenderAPI::Vulkan, config);
 
     if (!window)
@@ -44,7 +45,7 @@ int Run(int argc, char** argv, char** envp)
     renderer->SetDefaultTexture(resourceManager->GetDefaultTexture());
     
     SafePtr<Model> cubeModel = resourceManager->Load<Model>("resources/models/Cube.obj");
-    SafePtr<Texture> cubeTexture = resourceManager->Load<Texture>("resources/textures/grid.png");
+    SafePtr cubeTexture = resourceManager->GetDefaultTexture();
 
     dynamic_cast<VulkanRenderer*>(renderer.get())->SetModel(cubeModel);
     dynamic_cast<VulkanRenderer*>(renderer.get())->SetTexture(cubeTexture);

@@ -22,10 +22,20 @@ enum class CoordinateSpace
     Screen
 };
 
+enum WindowAttributes : uint32_t
+{
+    None = 0,
+    VSync = 1 << 1,
+    ClickThrough = 1 << 2,
+    NoDecoration = 1 << 3,
+    Transparent = 1 << 4
+};
+
 struct WindowConfig
 {
     std::string title;
     Vec2i size;
+    WindowAttributes attributes = WindowAttributes::None;
 };
 
 class Window
@@ -56,6 +66,10 @@ public:
     virtual void SetIcon(const std::filesystem::path& icon) = 0;
     
     virtual void SetVSync(bool enabled) = 0;
+    virtual void SetClickThrough(bool enabled) = 0;
+    virtual void SetDecorated(bool enabled) = 0;
+    virtual void SetTransparent(bool enabled) = 0;
+    
     virtual void Close(bool shouldClose) = 0;
 
     virtual void WaitEvents() = 0;
@@ -73,11 +87,16 @@ public:
     virtual CursorMode GetMouseCursorMode() const = 0;
     virtual CursorType GetMouseCursorType() const = 0;
     virtual Vec2f GetMouseCursorPositionScreen() const = 0;
+    
     Vec2i GetMouseCursorPosition(CoordinateSpace space = CoordinateSpace::Window) const;
 
     virtual std::vector<const char*> GetRequiredExtensions() const = 0;
 
     virtual bool IsVSyncEnabled() const = 0;
+    virtual bool IsClickThroughEnabled() const = 0;
+    virtual bool IsDecoratedEnabled() const = 0;
+    virtual bool IsTransparentEnabled() const = 0;
+    
     virtual bool ShouldClose() const = 0;
     
     Vec2i ToWindowSpace(const Vec2i& pos) const;

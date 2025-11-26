@@ -59,6 +59,10 @@ bool WindowGLFW::Initialize(RenderAPI renderAPI, const WindowConfig& config)
         default:
             break;
     }
+    SetClickThrough(config.attributes & WindowAttributes::ClickThrough);
+    SetDecorated(!(config.attributes & WindowAttributes::NoDecoration));
+    SetTransparent(config.attributes & WindowAttributes::Transparent);
+    SetVSync(config.attributes & WindowAttributes::VSync);
 
     p_windowHandle = glfwCreateWindow(config.size.x, config.size.y, config.title.c_str(), nullptr, nullptr);
     if (!p_windowHandle)
@@ -194,6 +198,42 @@ void WindowGLFW::SetIcon(const std::filesystem::path& icon)
     ImageLoader::ImageFree(image.data);
 }
 
+void WindowGLFW::SetClickThrough(bool enabled)
+{
+    if (GetHandle())
+    {
+        glfwSetWindowAttrib(GetHandle(), GLFW_MOUSE_PASSTHROUGH, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+    else
+    {
+        glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+}
+
+void WindowGLFW::SetDecorated(bool enabled)
+{
+    if (GetHandle())
+    {
+        glfwSetWindowAttrib(GetHandle(), GLFW_DECORATED, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+    else
+    {
+        glfwWindowHint(GLFW_DECORATED, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+}
+
+void WindowGLFW::SetTransparent(bool enabled)
+{
+    if (GetHandle())
+    {
+        glfwSetWindowAttrib(GetHandle(), GLFW_TRANSPARENT_FRAMEBUFFER, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+    else
+    {
+        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, enabled ? GLFW_TRUE : GLFW_FALSE);
+    }
+}
+
 void WindowGLFW::SetVSync(bool enabled)
 {
     if (p_renderAPI == RenderAPI::Vulkan)
@@ -290,6 +330,21 @@ Vec2f WindowGLFW::GetMouseCursorPositionScreen() const
 bool WindowGLFW::IsVSyncEnabled() const
 {
     return m_vsync;
+}
+
+bool WindowGLFW::IsClickThroughEnabled() const
+{
+    return glfwGetWindowAttrib(GetHandle(), GLFW_MOUSE_PASSTHROUGH) == GLFW_TRUE;
+}
+
+bool WindowGLFW::IsDecoratedEnabled() const
+{
+    return glfwGetWindowAttrib(GetHandle(), GLFW_DECORATED) == GLFW_TRUE;
+}
+
+bool WindowGLFW::IsTransparentEnabled() const
+{
+    return glfwGetWindowAttrib(GetHandle(), GLFW_TRANSPARENT_FRAMEBUFFER) == GLFW_TRUE;
 }
 
 bool WindowGLFW::ShouldClose() const

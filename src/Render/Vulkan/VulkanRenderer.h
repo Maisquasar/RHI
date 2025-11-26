@@ -13,7 +13,6 @@
 #include <galaxymath/Maths.h>
 #include <vulkan/vulkan.h>
 #include <memory>
-#include <glm/glm.hpp>
 
 #include "VulkanContext.h"
 #include "VulkanDevice.h"
@@ -32,9 +31,9 @@ class Window;
 
 struct UniformBufferObject
 {
-    glm::mat4 Model;
-    glm::mat4 View;
-    glm::mat4 Projection;
+    Mat4 Model;
+    Mat4 View;
+    Mat4 Projection;
 };
 
 class VulkanRenderer : public RHIRenderer

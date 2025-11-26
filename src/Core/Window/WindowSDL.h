@@ -20,7 +20,12 @@ public:
     void SetSize(const Vec2i& size) override;
     void SetPosition(const Vec2i& position) override;
     void SetIcon(const std::filesystem::path& icon) override;
+    
     void SetVSync(bool enabled) override;
+    void SetClickThrough(bool enabled) override;
+    void SetDecorated(bool enabled) override;
+    void SetTransparent(bool enabled) override;
+    
     void Close(bool shouldClose) override;
     void SetMouseCursorPositionScreen(const Vec2f& position) override;
     void SetMouseCursorMode(CursorMode mode) override;
@@ -34,7 +39,12 @@ public:
     CursorMode GetMouseCursorMode() const override;
     CursorType GetMouseCursorType() const override;
     Vec2f GetMouseCursorPositionScreen() const override;
+    
     bool IsVSyncEnabled() const override;
+    bool IsClickThroughEnabled() const override;
+    bool IsDecoratedEnabled() const override;
+    bool IsTransparentEnabled() const override;
+    
     bool ShouldClose() const override;
 
     std::vector<const char*> GetRequiredExtensions() const override;

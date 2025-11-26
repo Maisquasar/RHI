@@ -70,6 +70,11 @@ bool WindowSDL::Initialize(RenderAPI renderAPI, const WindowConfig& config)
         config.size.y,
         windowFlags
     );
+    
+    SetClickThrough(config.attributes & WindowAttributes::ClickThrough);
+    SetDecorated(!(config.attributes & WindowAttributes::NoDecoration));
+    SetTransparent(config.attributes & WindowAttributes::Transparent);
+    SetVSync(config.attributes & WindowAttributes::VSync);
 
     if (!p_windowHandle)
     {
@@ -211,6 +216,21 @@ void WindowSDL::SetIcon(const std::filesystem::path& icon)
     ImageLoader::ImageFree(image.data);
 }
 
+void WindowSDL::SetClickThrough(bool enabled)
+{
+    PrintWarning("SetClickThrough is not supported for this window API");
+}
+
+void WindowSDL::SetDecorated(bool enabled)
+{
+    SDL_SetWindowBordered(GetHandle(), enabled ? SDL_TRUE : SDL_FALSE);
+}
+
+void WindowSDL::SetTransparent(bool enabled)
+{
+    PrintWarning("SetTransparent is not supported for this window API");
+}
+
 void WindowSDL::SetVSync(bool enabled)
 {
     m_vsync = enabled;
@@ -308,6 +328,21 @@ Vec2f WindowSDL::GetMouseCursorPositionScreen() const
 bool WindowSDL::IsVSyncEnabled() const
 {
     return m_vsync;
+}
+
+bool WindowSDL::IsClickThroughEnabled() const
+{
+    return false;
+}
+
+bool WindowSDL::IsDecoratedEnabled() const
+{
+    return true;
+}
+
+bool WindowSDL::IsTransparentEnabled() const
+{
+    return false;
 }
 
 bool WindowSDL::ShouldClose() const

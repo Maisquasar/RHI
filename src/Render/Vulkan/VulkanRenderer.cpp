@@ -18,9 +18,6 @@
 #include <stdexcept>
 #include <chrono>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include "VulkanDepthBuffer.h"
 #include "VulkanDescriptorSetLayout.h"
 #include "VulkanIndexBuffer.h"
@@ -236,34 +233,36 @@ void VulkanRenderer::EndFrame()
 
 void VulkanRenderer::UpdateUniformBuffer()
 {
+    static auto lastTime = std::chrono::high_resolution_clock::now();
     static auto startTime = std::chrono::high_resolution_clock::now();
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
+    lastTime = currentTime;
 
-    UniformBufferObject ubo{};
+    static float time = 0.0f;
+    time += deltaTime;
+    
+    // float fps = 1.0f / deltaTime;
+    // PrintLog("FPS:   %f", fps);
 
-    // Camera parameters (same as your View)
-    glm::vec3 camPos   = glm::vec3(2.0f, 2.0f, 2.0f);
-    glm::vec3 camTarget= glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 camUp    = glm::vec3(0.0f, 1.0f, 0.0f);
+    UniformBufferObject ubo;
+    Vec3f camPos   = Vec3f(2.0f, 2.0f, 2.0f);
+    Vec3f camTarget= Vec3f(0.0f, 0.0f, 0.0f);
+    Vec3f camUp    = Vec3f(0.0f, 1.0f, 0.0f);
 
-    // Model: place cube in front of the camera, then rotate it locally around Y
-    float distanceInFront = 5.f; // tweak this: how far in front of the camera the cube should be
-    glm::vec3 forward = glm::normalize(camTarget - camPos);           // direction camera is looking
-    glm::vec3 cubePosition = camPos + forward * distanceInFront;     // world-space position in front of camera
+    float distanceInFront = 5.f;
+    Vec3f forward = Vec3f::Normalize(camTarget - camPos);
+    Vec3f cubePosition = camPos + forward * distanceInFront;
 
-    // Rotate around Y in the cube's local space:
-    float angle = time * glm::radians(90.0f); // same rotation speed you had
-    ubo.Model = glm::translate(glm::mat4(1.0f), cubePosition)  // move cube to position in front of camera
-                * glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f)); // then rotate locally
+    float angle = time * 90.0f;
+    ubo.Model = Mat4::CreateTransformMatrix(cubePosition, Vec3f(0.f, angle, 0.f), Vec3f(1.f, 1.f, 1.f));
 
-    // View matrix - camera looking at the target
-    ubo.View = glm::lookAt(camPos, camTarget, camUp);
-
-    // Projection matrix (same as before)
-    ubo.Projection = glm::perspective(glm::radians(45.0f),
-                                      m_swapChain->GetExtent().width / (float)m_swapChain->GetExtent().height,
-                                      0.1f, 10.0f);
+    Quat camRotation = Quat::LookRotation(camTarget - camPos, camUp);
+    
+    Mat4 out = Mat4::CreateTransformMatrix(camPos, camRotation, Vec3f(1, 1, 1));
+    ubo.View = Mat4::LookAtRH(camPos, camTarget, camUp);
+    
+    ubo.Projection = Mat4::CreateProjectionMatrix(45.f, m_swapChain->GetExtent().width / (float)m_swapChain->GetExtent().height, 0.1f, 10.0f);
     ubo.Projection[1][1] *= -1; // GLM -> Vulkan Y flip
 
     m_uniformBuffer->WriteToMapped(&ubo, sizeof(ubo), m_currentFrame);
@@ -435,7 +434,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
 {
     // Begin render pass
     std::vector<VkClearValue> clearValues(2);
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 0.0f}};
     clearValues[1].depthStencil = {.depth = 1.0f, .stencil = 0};
     m_renderPass->Begin(commandBuffer, m_framebuffer->GetFramebuffer(imageIndex),
                         m_swapChain->GetExtent(), clearValues);
