@@ -49,14 +49,16 @@ public:
     void WaitForGPU() override;
     void Cleanup() override;
 
-    void BeginFrame();
-    void EndFrame();
-    void UpdateUniformBuffer();
-    void DrawFrame();
-
-    bool IsInitialized() const { return m_initialized; }
+    
+    void WaitUntilFrameFinished() override;
+    bool BeginFrame() override;
+    void Update() override;
+    void EndFrame() override;
+    
+    void DrawFrame() override;
     
     bool MultiThreadSendToGPU() override { return true; }
+    
     std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) override;
     std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) override;
     std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) override;
@@ -71,7 +73,6 @@ private:
 
 private:
     Window* m_window = nullptr;
-    bool m_initialized = false;
     bool m_framebufferResized = false;
 
     std::unique_ptr<VulkanContext> m_context;
@@ -92,6 +93,7 @@ private:
     RHIIndexBuffer* m_currentIndexBuffer = nullptr;
     RHITexture* m_currentTexture = nullptr;
     uint32_t m_indexCount = 0;
+    uint32_t m_imageIndex = 0;
     
     SafePtr<Texture> m_texture;
     SafePtr<Model> m_model;

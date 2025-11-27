@@ -164,7 +164,7 @@ bool VulkanRenderer::Initialize(Window* window)
         }
         m_syncObjects->ResizeRenderFinishedSemaphores(m_swapChain->GetImageCount());
 
-        m_initialized = true;
+        p_initialized = true;
 
         window->EResizeEvent.Bind([this](Vec2i)
         {
@@ -206,8 +206,8 @@ void VulkanRenderer::Cleanup()
     m_device.reset();
     m_context.reset();
 
-    m_initialized = false;
-   PrintLog("Vulkan renderer cleaned up");
+    p_initialized = false;
+    PrintLog("Vulkan renderer cleaned up");
 }
 
 void VulkanRenderer::SetModel(const SafePtr<Model>& model)
@@ -220,35 +220,28 @@ void VulkanRenderer::SetTexture(const SafePtr<Texture>& texture)
     m_texture = texture;
 }
 
-void VulkanRenderer::BeginFrame()
+void VulkanRenderer::WaitUntilFrameFinished()
 {
-    // Wait for the previous frame to finish
     m_syncObjects->WaitForFence(m_currentFrame);
 }
 
-void VulkanRenderer::EndFrame()
-{
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-void VulkanRenderer::UpdateUniformBuffer()
+void VulkanRenderer::Update()
 {
     static auto lastTime = std::chrono::high_resolution_clock::now();
-    static auto startTime = std::chrono::high_resolution_clock::now();
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - lastTime).count();
+    float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
     lastTime = currentTime;
 
     static float time = 0.0f;
     time += deltaTime;
-    
+
     // float fps = 1.0f / deltaTime;
     // PrintLog("FPS:   %f", fps);
 
     UniformBufferObject ubo;
-    Vec3f camPos   = Vec3f(2.0f, 2.0f, 2.0f);
-    Vec3f camTarget= Vec3f(0.0f, 0.0f, 0.0f);
-    Vec3f camUp    = Vec3f(0.0f, 1.0f, 0.0f);
+    Vec3f camPos = Vec3f(2.0f, 2.0f, 2.0f);
+    Vec3f camTarget = Vec3f(0.0f, 0.0f, 0.0f);
+    Vec3f camUp = Vec3f(0.0f, 1.0f, 0.0f);
 
     float distanceInFront = 5.f;
     Vec3f forward = Vec3f::Normalize(camTarget - camPos);
@@ -258,54 +251,50 @@ void VulkanRenderer::UpdateUniformBuffer()
     ubo.Model = Mat4::CreateTransformMatrix(cubePosition, Vec3f(0.f, angle, 0.f), Vec3f(1.f, 1.f, 1.f));
 
     Quat camRotation = Quat::LookRotation(camTarget - camPos, camUp);
-    
+
     Mat4 out = Mat4::CreateTransformMatrix(camPos, camRotation, Vec3f(1, 1, 1));
     ubo.View = Mat4::LookAtRH(camPos, camTarget, camUp);
-    
-    ubo.Projection = Mat4::CreateProjectionMatrix(45.f, m_swapChain->GetExtent().width / (float)m_swapChain->GetExtent().height, 0.1f, 10.0f);
+
+    ubo.Projection = Mat4::CreateProjectionMatrix(
+        45.f, m_swapChain->GetExtent().width / (float)m_swapChain->GetExtent().height, 0.1f, 10.0f);
     ubo.Projection[1][1] *= -1; // GLM -> Vulkan Y flip
 
     m_uniformBuffer->WriteToMapped(&ubo, sizeof(ubo), m_currentFrame);
 }
 
-
-void VulkanRenderer::DrawFrame()
+bool VulkanRenderer::BeginFrame()
 {
-    if (!m_initialized)
-    {
-        return;
-    }
-
-    // Wait for previous frame
-    m_syncObjects->WaitForFence(m_currentFrame);
-
-    // Update uniform buffer
-    UpdateUniformBuffer();
-
-    // Acquire next image
-    uint32_t imageIndex;
+    m_imageIndex = 0;
     VkResult result = m_swapChain->AcquireNextImage(
         m_syncObjects->GetImageAvailableSemaphore(m_currentFrame),
-        &imageIndex
+        &m_imageIndex
     );
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR)
     {
         RecreateSwapChain();
-        return;
+        return false;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
     {
         throw std::runtime_error("Failed to acquire swap chain image!");
     }
 
-    // Reset fence only if we're submitting work
     m_syncObjects->ResetFence(m_currentFrame);
 
-    // Record command buffer
     m_commandBuffer->Reset(m_currentFrame);
     m_commandBuffer->BeginRecording(m_currentFrame);
-    RecordCommandBuffer(m_commandBuffer->GetCommandBuffer(m_currentFrame), imageIndex);
+    
+    return true;
+}
+
+void VulkanRenderer::DrawFrame()
+{
+    RecordCommandBuffer(m_commandBuffer->GetCommandBuffer(m_currentFrame), m_imageIndex);
+}
+
+void VulkanRenderer::EndFrame()
+{
     m_commandBuffer->EndRecording(m_currentFrame);
 
     // Submit command buffer
@@ -326,7 +315,7 @@ void VulkanRenderer::DrawFrame()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    result = vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo,
+    VkResult result = vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo,
                            m_syncObjects->GetInFlightFence(m_currentFrame));
     if (result != VK_SUCCESS)
     {
@@ -334,7 +323,7 @@ void VulkanRenderer::DrawFrame()
     }
 
     // Present
-    result = m_swapChain->PresentImage(m_device->GetPresentQueue(), imageIndex,
+    result = m_swapChain->PresentImage(m_device->GetPresentQueue(), m_imageIndex,
                                        m_syncObjects->GetRenderFinishedSemaphore(m_currentFrame));
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebufferResized)
@@ -354,7 +343,7 @@ std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Ima
 {
     std::unique_ptr<VulkanTexture> texture = std::make_unique<VulkanTexture>();
     texture->CreateFromImage(image, m_device.get(), m_commandBuffer->GetCommandPool(), m_device->GetGraphicsQueue());
-    
+
     // Update descriptor sets with the texture
     if (texture)
     {
@@ -395,11 +384,12 @@ std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Ima
                                    descriptorWrites.data(), 0, nullptr);
         }
     }
-    
+
     return texture;
 }
 
-std::unique_ptr<RHIVertexBuffer> VulkanRenderer::CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex)
+std::unique_ptr<RHIVertexBuffer> VulkanRenderer::CreateVertexBuffer(const float* data, uint32_t size,
+                                                                    uint32_t floatPerVertex)
 {
     std::unique_ptr<VulkanVertexBuffer> vertexBuffer = std::make_unique<VulkanVertexBuffer>();
 
@@ -467,12 +457,12 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t
     if (m_model && m_model->IsLoaded() && m_model->SentToGPU())
     {
         auto meshes = m_model->GetMeshes();
-        
+
         for (auto* mesh : meshes)
         {
             if (!mesh || !mesh->GetVertexBuffer() || !mesh->GetIndexBuffer())
                 continue;
-                
+
             VulkanVertexBuffer* vertexBuffer = static_cast<VulkanVertexBuffer*>(mesh->GetVertexBuffer());
             VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(mesh->GetIndexBuffer());
 

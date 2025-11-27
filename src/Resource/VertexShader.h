@@ -1,10 +1,12 @@
 #pragma once
 #include "IResource.h"
 
-class VertexShader : public IResource
+#include "Shader.h"
+
+class VertexShader : public BaseShader
 {
 public:
-    VertexShader(std::filesystem::path path) : IResource(std::move(path)) {}
+    VertexShader(std::filesystem::path path) : BaseShader(std::move(path)) {}
     VertexShader(const VertexShader&) = delete;
     VertexShader(VertexShader&&) = delete;
     VertexShader& operator=(const VertexShader&) = delete;
