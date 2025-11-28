@@ -113,6 +113,7 @@ target("Vulkan_Test")
     if has_config("vulkan") then
         add_packages("vulkansdk")
         add_packages("spirv-reflect")
+        add_packages("shaderc")
         add_links(is_mode("debug") and "shaderc_combinedd" or "shaderc_combined")
         add_defines("RENDER_API_VULKAN")
         if is_plat("windows") then
