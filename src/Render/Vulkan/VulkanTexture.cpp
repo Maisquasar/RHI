@@ -8,6 +8,7 @@
 #include <cstring>
 
 #include "VulkanCommandPool.h"
+#include "Debug/Log.h"
 
 VulkanTexture::~VulkanTexture()
 {
@@ -95,6 +96,9 @@ bool VulkanTexture::Create(VulkanDevice* device, uint32_t width, uint32_t height
                            VkFormat format, VkImageUsageFlags usage, 
                            VkCommandPool commandPool, VkQueue graphicsQueue)
 {
+    UNUSED(commandPool);
+    UNUSED(graphicsQueue);
+    
     if (!device || width == 0 || height == 0) {
         return false;
     }

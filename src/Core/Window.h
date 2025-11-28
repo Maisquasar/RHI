@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include <galaxymath/Maths.h>
+#include <filesystem>
 
 #include "Utils/Event.h"
 #include "Core/Input.h"

@@ -218,6 +218,7 @@ void WindowSDL::SetIcon(const std::filesystem::path& icon)
 
 void WindowSDL::SetClickThrough(bool enabled)
 {
+    UNUSED(enabled);
     PrintWarning("SetClickThrough is not supported for this window API");
 }
 
@@ -228,6 +229,7 @@ void WindowSDL::SetDecorated(bool enabled)
 
 void WindowSDL::SetTransparent(bool enabled)
 {
+    UNUSED(enabled);
     PrintWarning("SetTransparent is not supported for this window API");
 }
 

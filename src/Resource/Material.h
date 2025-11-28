@@ -18,5 +18,5 @@ public:
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
 private:
-    SafePtr<Shader> m_shader = nullptr;
+    SafePtr<Shader> m_shader;
 };
