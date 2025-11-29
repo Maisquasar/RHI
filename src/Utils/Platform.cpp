@@ -1,4 +1,4 @@
-﻿#include "Platform.h"
+#include "Platform.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -137,7 +137,7 @@ void SetThreadName( const char* threadName)
 void SetThreadName(std::thread* thread, const char* threadName)
 {
     auto handle = thread->native_handle();
-    pthread_setname_np(handle,threadName);
+    pthread_setname_np(threadName);
 }
 #endif
 

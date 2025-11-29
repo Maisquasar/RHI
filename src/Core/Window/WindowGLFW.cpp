@@ -2,7 +2,6 @@
 
 #include <filesystem>
 #include <iostream>
-#include <GLFW/glfw3native.h>
 
 #include "Debug/Log.h"
 #include "Resource/Loader/ImageLoader.h"
@@ -47,7 +46,7 @@ bool WindowGLFW::Initialize(RenderAPI renderAPI, const WindowConfig& config)
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
             #ifdef __APPLE__
-                glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+                glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
             #endif
             break;
         case RenderAPI::Vulkan:
@@ -112,6 +111,9 @@ void* WindowGLFW::GetNativeHandle() const
 {
 #ifdef _WIN32
     return glfwGetWin32Window(GetHandle());
+#elif __APPLE__
+    // return glfwGetCocoaWindow(GetHandle());
+    return nullptr;
 #else
     return glfwGetX11Window(GetHandle());
 #endif

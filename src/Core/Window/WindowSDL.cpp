@@ -1,4 +1,4 @@
-﻿#ifdef WINDOW_API_SDL
+#ifdef WINDOW_API_SDL
 #include "WindowSDL.h"
 
 #include <filesystem>
@@ -376,9 +376,20 @@ std::vector<const char*> WindowSDL::GetRequiredExtensions() const
 void* WindowSDL::GetNativeHandle() const
 {
     SDL_SysWMinfo wmInfo;
-    SDL_GetWindowWMInfo(static_cast<SDL_Window*>(p_windowHandle), &wmInfo);
+    SDL_VERSION(&wmInfo.version);
+
+    if (!SDL_GetWindowWMInfo(static_cast<SDL_Window*>(p_windowHandle), &wmInfo))
+        return nullptr;
+
+#ifdef _WIN32
     return wmInfo.info.win.window;
+#elif defined(__APPLE__)
+    return wmInfo.info.cocoa.window;
+#else
+    return nullptr;
+#endif
 }
+
 
 void WindowSDL::PollEvents()
 {

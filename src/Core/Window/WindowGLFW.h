@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "Core/Window.h"
-#include <GLFW/glfw3.h>
 #include <unordered_map>
 
 #ifdef RENDER_API_VULKAN
@@ -14,7 +13,13 @@
 #endif
 #ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(__APPLE__)
+// #define GLFW_EXPOSE_NATIVE_COCOA
+// #define GLFW_EXPOSE_NATIVE_NSGL
+// #define GLFW_INCLUDE_NONE
 #endif
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 
 class WindowGLFW : public Window
 {

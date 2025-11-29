@@ -1,8 +1,12 @@
 add_rules("plugin.vsxmake.autoupdate")
+add_rules("plugin.compile_commands.autoupdate", {outputdir = ".vscode"})
 add_rules("mode.debug", "mode.release")
 
 if is_plat("windows") then
-   set_runtimes(is_mode("debug") and "MDd" or "MD")
+    set_runtimes(is_mode("debug") and "MDd" or "MD")
+elseif is_plat("macosx") then
+    add_cxxflags("-Wno-enum-enum-conversion", {force = true})
+    add_cxxflags("-Wno-error=deprecated-declarations", {force = true})
 end
 
 -- Window API Options
@@ -114,7 +118,11 @@ target("Vulkan_Test")
         add_packages("vulkansdk")
         add_packages("spirv-reflect")
         add_packages("shaderc")
-        add_links(is_mode("debug") and "shaderc_combinedd" or "shaderc_combined")
+        if is_plat("windows") then
+            add_links(is_mode("debug") and "shaderc_combinedd" or "shaderc_combined")
+        else
+            add_links("shaderc_combined")
+        end
         add_defines("RENDER_API_VULKAN")
         if is_plat("windows") then
             add_links("vulkan-1")
