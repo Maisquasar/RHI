@@ -4,6 +4,7 @@
 #include <string>
 
 #include "Core/UUID.h"
+#include "Utils/Event.h"
 
 class ResourceManager;
 class RHIRenderer;
@@ -26,8 +27,20 @@ public:
     bool IsLoaded() const { return p_isLoaded; }
     bool SentToGPU() const { return p_sendToGPU; }
     
-    void SetLoaded() { p_isLoaded = true; }
-    void SetSentToGPU() { p_sendToGPU = true; }
+    void SetLoaded()
+    {
+        OnLoaded.Invoke();
+        p_isLoaded = true;
+    }
+    void SetSentToGPU()
+    {
+        OnSentToGPU.Invoke();
+        p_sendToGPU = true;
+    }
+    
+public:
+    Event<> OnLoaded;
+    Event<> OnSentToGPU;
 protected:    
     std::filesystem::path p_path;
     UUID p_uuid;

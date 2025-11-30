@@ -118,17 +118,16 @@ target("Vulkan_Test")
         add_packages("vulkansdk")
         add_packages("spirv-reflect")
         add_packages("shaderc")
-        if is_plat("windows") then
-            add_links(is_mode("debug") and "shaderc_combinedd" or "shaderc_combined")
+        if is_plat("windows") and is_mode("debug") then
+            add_links("shaderc_combinedd")
         else
             add_links("shaderc_combined")
         end
+
         add_defines("RENDER_API_VULKAN")
         if is_plat("windows") then
             add_links("vulkan-1")
-        elseif is_plat("linux") then
-            add_links("vulkan")
-        elseif is_plat("macosx") then
+        elseif is_plat("linux") or is_plat("macosx") then
             add_links("vulkan")
         end
     end

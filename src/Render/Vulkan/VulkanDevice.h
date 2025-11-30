@@ -14,11 +14,13 @@ struct VulkanQueue
     VulkanQueue(VkQueue _queue) : handle(_queue) {}
     ~VulkanQueue()
     {
-        delete mutex;
+        if (shouldDelete)
+            delete mutex;
     }
     
     VkQueue handle;
     std::mutex* mutex = new std::mutex();
+    bool shouldDelete = true;
 };
 
 

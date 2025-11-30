@@ -15,10 +15,11 @@ public:
     virtual ~BaseShader() override = default;
     
     virtual bool Load(ResourceManager* resourceManager) override;
-    virtual bool SendToGPU(RHIRenderer* renderer) override;
+    virtual bool SendToGPU(RHIRenderer* renderer) override = 0;
     virtual void Unload() override {}
     
 private:
+    std::string p_content;
 };
 
 class Shader : public IResource
@@ -34,6 +35,8 @@ public:
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
 
+private:
+    void OnShaderSent();
 private:
     // Pipeline m_pipeline;
     SafePtr<VertexShader> m_vertexShader;

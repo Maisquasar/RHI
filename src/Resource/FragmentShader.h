@@ -1,10 +1,10 @@
 #pragma once
-#include "IResource.h"
+#include "Shader.h"
 
-class FragmentShader : public IResource
+class FragmentShader : public BaseShader
 {
 public:
-    FragmentShader(std::filesystem::path path) : IResource(std::move(path)) {}
+    FragmentShader(std::filesystem::path path) : BaseShader(std::move(path)) {}
     FragmentShader(const FragmentShader&) = delete;
     FragmentShader(FragmentShader&&) = delete;
     FragmentShader& operator=(const FragmentShader&) = delete;

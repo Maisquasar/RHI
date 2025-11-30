@@ -42,6 +42,7 @@ int Run(int argc, char** argv, char** envp)
     std::unique_ptr<ResourceManager> resourceManager = std::make_unique<ResourceManager>();
     resourceManager->Initialize(renderer.get());
     resourceManager->LoadDefaultTexture("resources/textures/debug.jpeg");
+    resourceManager->LoadDefaultShader("resources/shaders/unlit.shader");
     
     renderer->SetDefaultTexture(resourceManager->GetDefaultTexture());
 
