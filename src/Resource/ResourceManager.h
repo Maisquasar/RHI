@@ -77,8 +77,9 @@ public:
         std::shared_ptr<T> resource = std::make_shared<T>(resourcePath);
         if (multiThread)
         {
-            ThreadPool::Enqueue([resource, this, hash]() {
-                if (resource->IsLoaded())
+            ThreadPool::Enqueue([this, hash]() {
+                auto resource = GetResource<T>(hash);
+                if (!resource || resource->IsLoaded())
                     return;
                 if (resource->Load(this))
                 {
@@ -126,6 +127,10 @@ public:
                     PrintLog("Resource sent to GPU: %s", it->second->GetPath().generic_string().c_str());
                     it->second->SetSentToGPU();
                 }
+                else
+                {
+                    AddResourceToSend(hash);
+                }
             }
         }
     }
@@ -134,11 +139,15 @@ public:
     {
         if (m_renderer->MultiThreadSendToGPU())
         {
-            std::shared_ptr<IResource> resource = GetResource<IResource>(hash);
-            ThreadPool::Enqueue([resource, this]() {
-                if (resource->SendToGPU(m_renderer))
+            ThreadPool::Enqueue([hash, this]() {
+                std::shared_ptr<IResource> resource = GetResource<IResource>(hash);
+                if (resource && resource->SendToGPU(m_renderer))
                 {
                     resource->SetSentToGPU();
+                }
+                else
+                {
+                    AddResourceToSend(hash);
                 }
             });
         }

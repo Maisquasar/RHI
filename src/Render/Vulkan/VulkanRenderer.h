@@ -27,6 +27,7 @@
 #include "VulkanSyncObjects.h"
 #include "VulkanUniformBuffer.h"
 
+enum class ShaderType;
 class Window;
 
 struct UniformBufferObject
@@ -58,9 +59,13 @@ public:
     
     bool MultiThreadSendToGPU() override { return true; }
     
+    std::string CompileShader(ShaderType type, const std::string& code) override;
+    std::vector<Uniform> GetUniforms(Shader* shader) override;
+    
     std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) override;
     std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) override;
     std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) override;
+    std::unique_ptr<RHIShaderBuffer> CreateShaderBuffer(const std::string& code) override;
     
     void SetDefaultTexture(const SafePtr<Texture>& texture) override;
 

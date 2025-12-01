@@ -33,7 +33,6 @@ bool Model::Load(ResourceManager* resourceManager)
             meshResource->SetLoaded();
             resourceManager->AddResourceToSend(meshResource.get().get());
         } 
-        PrintLog("Model %s successfully loaded", GetPath().filename().generic_string().c_str());
         return true;
     }
     else

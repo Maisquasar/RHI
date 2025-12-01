@@ -15,5 +15,8 @@ public:
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
+    
+    ShaderType GetShaderType() const override { return ShaderType::Vertex; }
 private:
+    std::string p_content;
 };

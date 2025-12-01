@@ -17,16 +17,25 @@
 #include <iostream>
 #include <stdexcept>
 #include <chrono>
+#include <spirv_reflect.h>
+#include <shaderc/shaderc.hpp>
 
 #include "VulkanDepthBuffer.h"
 #include "VulkanDescriptorSetLayout.h"
 #include "VulkanIndexBuffer.h"
+#include "VulkanShaderBuffer.h"
 #include "VulkanTexture.h"
 #include "VulkanVertexBuffer.h"
+
 #include "Debug/Log.h"
+#include "Resource/FragmentShader.h"
+
 #include "Resource/Mesh.h"
 #include "Resource/Model.h"
 #include "Resource/Texture.h"
+#include "Resource/Shader.h"
+#include "Resource/VertexShader.h"
+
 #include "Utils/Type.h"
 
 VulkanRenderer::~VulkanRenderer() = default;
@@ -343,6 +352,134 @@ void VulkanRenderer::EndFrame()
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+std::string VulkanRenderer::CompileShader(ShaderType type, const std::string& code)
+{
+    shaderc_shader_kind kind;
+    switch (type)
+    {
+    case ShaderType::Vertex:
+        kind = shaderc_vertex_shader;
+        break;
+    case ShaderType::Fragment:
+        kind = shaderc_fragment_shader;
+        break;
+    default:
+        PrintError("Invalid shader type");
+        return "";    
+    }
+    
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions options;
+
+    shaderc::SpvCompilationResult module =
+        compiler.CompileGlslToSpv(code, kind, "shader.glsl", options);
+
+    if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
+        PrintError("Shader compilation failed: %s", module.GetErrorMessage().c_str());;
+        return {};
+    }
+
+    std::vector<uint32_t> spirv(module.begin(), module.end());
+
+    const char* begin = reinterpret_cast<const char*>(spirv.data());
+    const char* end = begin + spirv.size() * sizeof(uint32_t);
+    return std::string(begin, end);
+}
+
+static std::vector<Uniform> SpirvReflectExample(const std::string& spirv)
+{
+    size_t spirv_nbytes = spirv.size();
+    const void* spirv_code = spirv.data();
+    
+    if (spirv_nbytes % sizeof(uint32_t) != 0) {
+        PrintError("SPIR-V binary is corrupt or truncated"); 
+        return {}; 
+    }
+
+    SpvReflectShaderModule module;
+    
+    SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, 
+                                                           reinterpret_cast<const uint32_t*>(spirv_code), 
+                                                           &module);
+    
+    if (result != SPV_REFLECT_RESULT_SUCCESS) {
+        PrintError("Failed to create SPIR-V Reflect Shader Module");
+        return {};
+    }
+
+    uint32_t binding_count = 0;
+    result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, NULL);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+    SpvReflectDescriptorBinding** bindings = 
+      static_cast<SpvReflectDescriptorBinding**>(malloc(binding_count * sizeof(SpvReflectDescriptorBinding*)));
+      
+    if (bindings == NULL) {
+        spvReflectDestroyShaderModule(&module);
+        PrintError("Failed to allocate memory for SPIR-V Reflect Descriptor Bindings");
+        return {};
+    }
+    
+    result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, bindings);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+    std::vector<Uniform> uniforms;
+    for (uint32_t i = 0; i < binding_count; ++i) 
+    {
+        const SpvReflectDescriptorBinding* binding = bindings[i];
+        Uniform u;
+        
+        u.name = binding->name;
+        u.set = binding->set;
+        u.binding = binding->binding;
+        u.size = binding->block.size;
+        
+        switch (binding->descriptor_type) {
+            case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                if (u.name.empty() && binding->type_description) {
+                    u.name = binding->type_description->type_name;
+                }
+                u.type = UniformType::NestedStruct;
+                break;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+                u.type = UniformType::Sampler2D;
+                break;
+            default:
+                u.type = UniformType::Unknown;
+                break;
+        }
+
+        if (u.type != UniformType::Unknown) {
+            uniforms.push_back(std::move(u));
+        }
+    }
+        
+    free(bindings);
+
+    spvReflectDestroyShaderModule(&module);
+    
+    return uniforms;
+}
+
+std::vector<Uniform> VulkanRenderer::GetUniforms(Shader* shader)
+{
+    VertexShader* vertex = shader->GetVertexShader();
+    FragmentShader* frag = shader->GetFragmentShader();
+    
+    std::vector<Uniform> uniforms;
+
+    std::vector<Uniform> result = {};
+    result = SpirvReflectExample(vertex->GetContent());
+    uniforms.insert(uniforms.begin(), result.begin(), result.end());
+    
+    result = SpirvReflectExample(frag->GetContent());
+    uniforms.insert(uniforms.begin(), result.begin(), result.end());
+    
+    return uniforms;
+}
+
 std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Image& image)
 {
     std::unique_ptr<VulkanTexture> texture = std::make_unique<VulkanTexture>();
@@ -413,6 +550,14 @@ std::unique_ptr<RHIIndexBuffer> VulkanRenderer::CreateIndexBuffer(const uint32_t
     indexBuffer->SetIndexCount(size);
 
     return std::move(indexBuffer);
+}
+
+std::unique_ptr<RHIShaderBuffer> VulkanRenderer::CreateShaderBuffer(const std::string& code)
+{
+    std::unique_ptr<VulkanShaderBuffer> shaderBuffer = std::make_unique<VulkanShaderBuffer>();
+    if (!shaderBuffer->Initialize(m_device.get(), code))
+        return nullptr;
+    return std::move(shaderBuffer);
 }
 
 void VulkanRenderer::SetDefaultTexture(const SafePtr<Texture>& texture)

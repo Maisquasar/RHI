@@ -22,6 +22,7 @@ public:
                     const std::vector<VkDescriptorSetLayoutBinding>& bindings = {},
                     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT, 
                     bool enableDepth = true, bool compiled = false);
+    
     void Cleanup();
 
     VkPipeline GetPipeline() const { return m_pipeline; }

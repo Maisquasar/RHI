@@ -1,11 +1,16 @@
 ﻿#pragma once
 #include <memory>
+#include <vector>
 
 #include "RHIIndexBuffer.h"
+#include "RHIShaderBuffer.h"
 #include "RHITexture.h"
 #include "RHIVertexBuffer.h"
 #include "Utils/Type.h"
 
+class Shader;
+struct Uniform;
+enum class ShaderType;
 class Texture;
 class Window;
 
@@ -48,7 +53,10 @@ public:
     virtual std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) = 0;
     virtual std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) = 0;
     virtual std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) = 0;
-    // virtual std::unique_ptr<RHI
+    virtual std::unique_ptr<RHIShaderBuffer> CreateShaderBuffer(const std::string& code) = 0;
+    
+    virtual std::string CompileShader(ShaderType type, const std::string& code) = 0;
+    virtual std::vector<Uniform> GetUniforms(Shader* shader) = 0;
     
     virtual void SetDefaultTexture(const SafePtr<Texture>& texture) = 0;
     

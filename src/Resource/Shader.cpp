@@ -6,11 +6,44 @@
 #include "Debug/Log.h"
 #include "Utils/File.h"
 
+BaseShader::~BaseShader()
+{
+    if (p_buffer)
+    {
+        p_buffer->CleanUp();
+    }
+}
+
 bool BaseShader::Load(ResourceManager* resourceManager)
 {
     UNUSED(resourceManager);
     File file(p_path);
-    return file.ReadAllText(p_content);
+    if (!file.ReadAllText(p_content))
+    {
+        PrintError("Failed to read shader source from file: %s", p_path.c_str());
+        return false;
+    }
+    return true;
+}
+
+bool BaseShader::SendToGPU(RHIRenderer* renderer)
+{
+    if (!p_buffer)
+    {
+        p_content = renderer->CompileShader(GetShaderType(), p_content);
+        if (p_content.empty())
+        {
+            PrintError("Failed to compile shader: %s", p_path.c_str());
+            return false;
+        }
+        p_buffer = renderer->CreateShaderBuffer(p_content);
+        if (!p_buffer)
+        {
+            PrintError("Failed to create shader buffer: %s", p_path.c_str());
+            return false;
+        }
+    }
+    return true;
 }
 
 bool Shader::Load(ResourceManager* resourceManager)
@@ -55,7 +88,12 @@ bool Shader::Load(ResourceManager* resourceManager)
 
 bool Shader::SendToGPU(RHIRenderer* renderer)
 {
-    //TODO:
+    if (!m_vertexShader->SentToGPU() || !m_fragmentShader->SentToGPU())
+    {
+        return false;
+    }
+    
+    m_uniforms = renderer->GetUniforms(this);
     return true;
 }
 

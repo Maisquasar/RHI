@@ -1,6 +1,7 @@
 #include "VertexShader.h"
 
 #include "Debug/Log.h"
+#include "Render/RHI/RHIRenderer.h"
 
 bool VertexShader::Load(ResourceManager* resourceManager)
 {
@@ -9,8 +10,7 @@ bool VertexShader::Load(ResourceManager* resourceManager)
 
 bool VertexShader::SendToGPU(RHIRenderer* renderer)
 {
-    UNUSED(renderer);
-    return true;
+    return BaseShader::SendToGPU(renderer);
 }
 
 void VertexShader::Unload()

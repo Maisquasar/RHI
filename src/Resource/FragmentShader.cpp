@@ -7,7 +7,7 @@ bool FragmentShader::Load(ResourceManager* resourceManager)
 
 bool FragmentShader::SendToGPU(RHIRenderer* renderer)
 {
-    return true;
+    return BaseShader::SendToGPU(renderer);
 }
 
 void FragmentShader::Unload()
