@@ -541,7 +541,6 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         }
         
         // --- Descriptor Set Allocation/Initialization ---
-        
         for (const auto& m_descriptorSetLayout : m_descriptorSetLayouts)
         {
             std::unique_ptr<VulkanDescriptorSet> descriptorSet = std::make_unique<VulkanDescriptorSet>();

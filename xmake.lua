@@ -81,12 +81,13 @@ add_defines("IMGUI_DEFINE_MATH_OPERATORS", "IMGUI_IMPLEMENTATION", "NOMINMAX")
 set_languages("c++latest")
 set_rundir("$(projectdir)")
 
-target("Vulkan_Test")
+target("Engine")
+    set_default(true)
     set_kind("binary")
     
-    add_files("src/**.cpp")
-    add_headerfiles("src/**.h", "src/**.hpp")
-    add_includedirs("src")
+    add_files("Engine/src/**.cpp")
+    add_headerfiles("Engine/src/**.h", "Engine/src/**.hpp")
+    add_includedirs("Engine/src")
 
     -- Always add base packages
     add_packages("imgui", "galaxymath", "stb", "thread-pool")
@@ -164,4 +165,10 @@ target("Vulkan_Test")
             raise("Error: DirectX is only available on Windows!")
         end
     end)
+target_end()
+
+target("Editor")
+    add_files("Editor/src/**.cpp")
+    add_headerfiles("Editor/src/**.h", "Editor/src/**.hpp")
+    add_includedirs("Editor/src")
 target_end()

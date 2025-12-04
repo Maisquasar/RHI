@@ -3,12 +3,16 @@
 #include <unordered_map>
 
 #include "Core/ThreadPool.h"
+
 #include "Debug/Log.h"
+
 #include "Render/RHI/RHIRenderer.h"
 
 #include "Utils/Type.h"
 
 #include "Resource/IResource.h"
+
+#define RESOURCE_PATH "Engine/resources/"
 
 
 class Shader;
