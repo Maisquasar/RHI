@@ -14,6 +14,10 @@
 
 #include "Utils/Type.h"
 
+#if defined(_MSC_VER)
+#include <crtdbg.h>
+#endif
+
 int Run(int argc, char** argv, char** envp)
 {
     (void)argc;
@@ -22,14 +26,13 @@ int Run(int argc, char** argv, char** envp)
 
     Engine engine;
     engine.Initialize();
-    
+
     engine.Run();
-    
+
     engine.Cleanup();
 
     return 0;
 }
-
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -42,17 +45,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, 
 int main(int argc, char** argv, char** envp)
 #endif
 {
-#ifdef _WIN32
+#if defined(_MSC_VER)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-    // TODO: Remove Comments To Break on leaks
-    // |
-    // V
-    // _CrtSetBreakAlloc(173);
-#ifdef NDEBUG
-    int argc = __argc;
-    char** argv = __argv;
-    char** envp = nullptr;
+#if defined(NDEBUG) && defined(_WIN32)
+    argc = __argc;
+    argv = __argv;
+    envp = nullptr;
 #endif
 #endif
+
     return Run(argc, argv, envp);
 }

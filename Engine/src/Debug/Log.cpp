@@ -9,8 +9,6 @@ bool Debug::Log::LogToFile = false;
 bool Debug::Log::m_isFileOpen = false;
 std::ofstream Debug::Log::m_file;
 
-Debug::Log::~Log() = default;
-
 void Debug::Log::OpenFile(const std::tm& calendar_time)
 {
 	char buf[MAX_LOG_SIZE];
