@@ -21,9 +21,11 @@ void ResourceManager::LoadDefaultShader(const std::filesystem::path& shaderPath)
 
 void ResourceManager::LoadDefaultTexture(const std::filesystem::path& texturePath)
 {
-    Load<Texture>(texturePath, false);
+    SafePtr<Texture> texture = Load<Texture>(texturePath, false);
     
     m_defaultTexture = GetHash(texturePath);
+    
+    m_renderer->SetDefaultTexture(texture);
 }
 
 std::shared_ptr<Shader> ResourceManager::GetDefaultShader() const

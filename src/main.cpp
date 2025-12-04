@@ -44,20 +44,43 @@ int Run(int argc, char** argv, char** envp)
     resourceManager->Initialize(renderer.get());
     resourceManager->LoadDefaultTexture("resources/textures/debug.jpeg");
     resourceManager->LoadDefaultShader("resources/shaders/unlit.shader");
-    
-    renderer->SetDefaultTexture(resourceManager->GetDefaultTexture());
 
     SafePtr<Model> cubeModel = resourceManager->Load<Model>("resources/models/Cube.obj");
-    SafePtr cubeTexture = resourceManager->GetDefaultTexture();
+    
     SafePtr cubeShader = resourceManager->GetDefaultShader();
 
-    dynamic_cast<VulkanRenderer*>(renderer.get())->SetModel(cubeModel);
-    dynamic_cast<VulkanRenderer*>(renderer.get())->SetTexture(cubeTexture);
-
+    bool process = false;
     static auto startTime = std::chrono::high_resolution_clock::now(); 
     while (!window->ShouldClose())
     {
+        static auto lastTime = std::chrono::high_resolution_clock::now();
+        static float time = 0.0f;
         auto currentTime = std::chrono::high_resolution_clock::now();
+        float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+        time += deltaTime;
+        lastTime = currentTime;
+        
+        if (time > 5.f && !process)
+        {
+            process = true;
+            SafePtr cubeTexture = resourceManager->Load<Texture>("resources/textures/grid.png");
+            auto rendererPtr = renderer.get();
+            cubeTexture->OnSentToGPU.Bind([cubeShader, rendererPtr, cubeTexture]()
+            {
+                if (cubeShader->SentToGPU())
+                {
+                    cubeShader->SendTexture(cubeTexture.get().get(), rendererPtr);
+                }
+                else
+                {
+                    cubeShader->OnSentToGPU.Bind([cubeShader, cubeTexture, rendererPtr]()
+                    {
+                        cubeShader->SendTexture(cubeTexture.get().get(), rendererPtr);
+                    });
+                }
+            });
+        }
+        
         window->PollEvents();
 
         resourceManager->UpdateResourceToSend();
@@ -69,16 +92,6 @@ int Run(int argc, char** argv, char** envp)
         // renderer->Update();
         {
             Vec2i windowSize = window->GetSize();
-            static auto lastTime = std::chrono::high_resolution_clock::now();
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-            lastTime = currentTime;
-
-            static float time = 0.0f;
-            time += deltaTime;
-
-            // float fps = 1.0f / deltaTime;
-            // PrintLog("FPS:   %f", fps);
 
             UniformBufferObject ubo;
             Vec3f camPos = Vec3f(2.0f, 2.0f, 2.0f);
@@ -92,9 +105,6 @@ int Run(int argc, char** argv, char** envp)
             float angle = time * 90.0f;
             ubo.Model = Mat4::CreateTransformMatrix(cubePosition, Vec3f(0.f, angle, 0.f), Vec3f(1.f, 1.f, 1.f));
 
-            Quat camRotation = Quat::LookRotation(camTarget - camPos, camUp);
-
-            Mat4 out = Mat4::CreateTransformMatrix(camPos, camRotation, Vec3f(1, 1, 1));
             ubo.View = Mat4::LookAtRH(camPos, camTarget, camUp);
 
             ubo.Projection = Mat4::CreateProjectionMatrix(

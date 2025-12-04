@@ -63,6 +63,7 @@ public:
     
     virtual std::string CompileShader(ShaderType type, const std::string& code) = 0;
     virtual std::vector<Uniform> GetUniforms(Shader* shader) = 0;
+    virtual void SendTexture(uint32_t index, Texture* texture, Shader* shader) = 0;
     virtual void SendValue(void* value, uint32_t size, Shader* shader) = 0;
     virtual void BindShader(Shader* shader) = 0;
     

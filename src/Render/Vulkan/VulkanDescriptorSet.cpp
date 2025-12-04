@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "Debug/Log.h"
+#include "Resource/Texture.h"
 
 VulkanDescriptorSet::~VulkanDescriptorSet()
 {
@@ -109,4 +110,87 @@ VkDescriptorSet VulkanDescriptorSet::GetDescriptorSet(uint32_t index) const
         throw std::runtime_error("Invalid descriptor set index!");
     }
     return m_descriptorSets[index];
+}
+
+void VulkanDescriptorSet::UpdateDescriptorSets(uint32_t frameIndex, uint32_t index, const std::vector<Uniform>& uniforms, VulkanUniformBuffer* uniformBuffers, Texture* defaultTexture) const
+{
+    size_t bufferCount = 0, imageCount = 0;
+    for (const auto &u : uniforms)
+    {
+        if (u.set == index)
+        {
+            if (u.type == UniformType::NestedStruct) 
+                ++bufferCount;
+            else if (u.type == UniformType::Sampler2D) 
+                ++imageCount;
+        }
+    }
+
+    std::vector<VkWriteDescriptorSet> descriptorWrites;
+    std::vector<VkDescriptorBufferInfo> descBufferInfos;
+    std::vector<VkDescriptorImageInfo> imageInfos;
+    descriptorWrites.reserve(bufferCount + imageCount);
+    descBufferInfos.reserve(bufferCount);
+    imageInfos.reserve(imageCount);
+
+    for (size_t i = 0; i < uniforms.size(); ++i)
+    {
+        if (uniforms[i].set != index) continue;
+
+        if (uniforms[i].type == UniformType::NestedStruct)
+        {
+            VkDescriptorBufferInfo descBufferInfo{};
+            descBufferInfo.buffer = uniformBuffers->GetBuffer(frameIndex);
+            descBufferInfo.offset = 0;
+            descBufferInfo.range = uniforms[i].size;
+            descBufferInfos.push_back(descBufferInfo);
+        }
+        else if (uniforms[i].type == UniformType::Sampler2D)
+        {
+            VulkanTexture* vulkanTexture = dynamic_cast<VulkanTexture*>(defaultTexture->GetBuffer());
+            if (!vulkanTexture) continue;
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = vulkanTexture->GetImageView();
+            imageInfo.sampler = vulkanTexture->GetSampler();
+            imageInfos.push_back(imageInfo);
+        }
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.pNext = nullptr;
+        descriptorWrite.dstSet = GetDescriptorSet(frameIndex);
+        descriptorWrite.dstBinding = uniforms[i].binding;
+        descriptorWrite.dstArrayElement = 0;
+
+        if (uniforms[i].type == UniformType::NestedStruct)
+        {
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &descBufferInfos.back();
+            descriptorWrite.pImageInfo = nullptr;
+            descriptorWrite.pTexelBufferView = nullptr;
+        }
+        else if (uniforms[i].type == UniformType::Sampler2D)
+        {
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pImageInfo = &imageInfos.back();
+            descriptorWrite.pBufferInfo = nullptr;
+            descriptorWrite.pTexelBufferView = nullptr;
+        }
+        else
+        {
+            continue;
+        }
+
+        descriptorWrites.push_back(descriptorWrite);
+    }
+
+    if (!descriptorWrites.empty())
+    {
+        vkUpdateDescriptorSets(m_device->GetDevice(),
+                               static_cast<uint32_t>(descriptorWrites.size()),
+                               descriptorWrites.data(), 0, nullptr);
+    }
 }

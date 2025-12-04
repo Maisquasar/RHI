@@ -318,8 +318,8 @@ static VkShaderStageFlags ConvertType(ShaderType type)
 }
 
 bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, VkExtent2D extent,
-                                const std::vector<Uniform>& uniforms, const VertexShader* vertexShader, const FragmentShader* fragShader, 
-                                uint32_t MAX_FRAMES_IN_FLIGHT)
+                                const std::vector<Uniform>& uniforms, const VertexShader* vertexShader, const FragmentShader* fragShader,
+                                uint32_t MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture)
 {
     m_device = device;
     try
@@ -343,7 +343,7 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
 
             descriptorTypeCounts[layoutBinding.descriptorType] += 1;
 
-            // NEW LOGIC: Track the maximum size needed for any Uniform Buffer
+            // Track the maximum size needed for any Uniform Buffer
             if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
             {
                 maxUniformBufferSize = std::max(maxUniformBufferSize, uniform.size);
@@ -547,6 +547,14 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
             std::unique_ptr<VulkanDescriptorSet> descriptorSet = std::make_unique<VulkanDescriptorSet>();
             descriptorSet->Initialize(m_device, m_descriptorPool->GetPool(), m_descriptorSetLayout->GetLayout(), MAX_FRAMES_IN_FLIGHT);
             m_descriptorSets.push_back(std::move(descriptorSet));
+        }
+        
+        for (uint32_t j = 0; j < m_descriptorSets.size(); j++)
+        {
+            for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+            {
+                m_descriptorSets[j]->UpdateDescriptorSets(i, j, uniforms, m_uniformBuffer.get(), defaultTexture);
+            }
         }
         
         return true;

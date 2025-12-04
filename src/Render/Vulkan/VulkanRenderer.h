@@ -62,6 +62,7 @@ public:
     
     std::string CompileShader(ShaderType type, const std::string& code) override;
     std::vector<Uniform> GetUniforms(Shader* shader) override;
+    void SendTexture(uint32_t index, Texture* texture, Shader* shader) override;
     void SendValue(void* value, uint32_t size, Shader* shader) override;
     void BindShader(Shader* shader) override;
     
@@ -73,9 +74,6 @@ public:
     
     void SetDefaultTexture(const SafePtr<Texture>& texture) override;
     void ClearColor() const;
-
-    void SetModel(const SafePtr<Model>& model);
-    void SetTexture(const SafePtr<Texture>& texture);
 private:
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void RecreateSwapChain();
@@ -95,8 +93,7 @@ private:
 
     uint32_t m_imageIndex = 0;
     
-    SafePtr<Texture> m_texture;
-    SafePtr<Model> m_model;
+    SafePtr<Texture> m_defaultTexture;
 
     static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t m_currentFrame = 0;

@@ -166,16 +166,6 @@ void VulkanRenderer::Cleanup()
     PrintLog("Vulkan renderer cleaned up");
 }
 
-void VulkanRenderer::SetModel(const SafePtr<Model>& model)
-{
-    m_model = model;
-}
-
-void VulkanRenderer::SetTexture(const SafePtr<Texture>& texture)
-{
-    m_texture = texture;
-}
-
 void VulkanRenderer::WaitUntilFrameFinished()
 {
     m_syncObjects->WaitForFence(m_currentFrame);
@@ -578,6 +568,21 @@ std::vector<Uniform> VulkanRenderer::GetUniforms(Shader* shader)
     return uniforms;
 }
 
+void VulkanRenderer::SendTexture(uint32_t index, Texture* texture, Shader* shader)
+{
+    VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
+    auto descriptors = pipeline->GetDescriptorSets();
+    auto uniformBuffer = pipeline->GetUniformBuffer();
+    for (uint32_t j = 0; j < descriptors.size(); j++)
+    {
+        for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            descriptors[j]->UpdateDescriptorSets(i, j, shader->GetUniforms(), uniformBuffer, texture);
+        }
+    }
+    // pipeline->
+}
+
 void VulkanRenderer::SendValue(void* value, uint32_t size, Shader* shader)
 {
     VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
@@ -704,7 +709,7 @@ std::unique_ptr<RHIPipeline> VulkanRenderer::CreatePipeline(const VertexShader* 
     const FragmentShader* fragmentShader, const std::vector<Uniform>& uniforms)
 {
     std::unique_ptr<VulkanPipeline> pipeline = std::make_unique<VulkanPipeline>();
-    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), uniforms, vertexShader, fragmentShader, MAX_FRAMES_IN_FLIGHT);
+    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), uniforms, vertexShader, fragmentShader, MAX_FRAMES_IN_FLIGHT, m_defaultTexture.get().get());
     return std::move(pipeline);
 }
 
@@ -714,6 +719,7 @@ void VulkanRenderer::SetDefaultTexture(const SafePtr<Texture>& texture)
     {
         PrintError("Failed to set default texture because device is not valid");
     }
+    m_defaultTexture = texture.get();
     m_device->SetDefaultTexture(dynamic_cast<VulkanTexture*>(texture->GetBuffer()));
 }
 

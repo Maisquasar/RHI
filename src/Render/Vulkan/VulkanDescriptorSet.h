@@ -1,4 +1,5 @@
 #pragma once
+#include "Resource/Shader.h"
 
 #ifdef RENDER_API_VULKAN
 #include <vulkan/vulkan.h>
@@ -23,6 +24,8 @@ public:
                             VulkanTexture* texture);
 
     VkDescriptorSet GetDescriptorSet(uint32_t index) const;
+    
+    void UpdateDescriptorSets(uint32_t frameIndex, uint32_t index, const std::vector<Uniform>& uniforms, VulkanUniformBuffer* uniformBuffers, Texture* defaultTexture) const;
 
 private:
     VulkanDevice* m_device = nullptr;

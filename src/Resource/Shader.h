@@ -5,6 +5,7 @@
 #include "Render/RHI/RHIPipeline.h"
 #include "Render/RHI/RHIShaderBuffer.h"
 
+class Texture;
 class FragmentShader;
 class VertexShader;
 
@@ -96,6 +97,7 @@ public:
     VertexShader* GetVertexShader() const { return m_vertexShader.get().get(); }
     FragmentShader* GetFragmentShader() const { return m_fragmentShader.get().get(); }
     
+    void SendTexture(Texture* texture, RHIRenderer* renderer);
     void SendValue(void* value, uint32_t size, RHIRenderer* renderer);
     
     RHIPipeline* GetPipeline() const { return m_pipeline.get(); }

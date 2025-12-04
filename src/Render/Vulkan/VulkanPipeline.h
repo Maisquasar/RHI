@@ -34,7 +34,7 @@ public:
                     VkRenderPass renderPass,
                     VkExtent2D extent,
                     const std::vector<Uniform>& uniforms, const VertexShader* vertexShader, const FragmentShader* fragShader, uint32_t
-                    MAX_FRAMES_IN_FLIGHT);
+                    MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture);
     
     void Cleanup();
 
@@ -42,7 +42,6 @@ public:
     VkPipelineLayout GetPipelineLayout() const { return m_pipelineLayout; }
     std::vector<VulkanDescriptorSetLayout*> GetDescriptorSetLayouts() const;
     std::vector<VulkanDescriptorSet*> GetDescriptorSets() const;
-
 
     void Bind(VkCommandBuffer commandBuffer);
 
