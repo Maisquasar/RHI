@@ -69,12 +69,27 @@ void Engine::Run()
     {
         SafePtr cubeMesh = m_resourceManager->GetResource<Mesh>(cubeModel->GetMeshes()[0]->GetPath());
     
-        for (int i = 0; i < 2; i++)
+        size_t count = 3 * 3 * 3;
+        size_t sqrtCount = std::pow(count, 1 / 3.f);
+        for (int i = 0; i < count; i++)
         {
             SafePtr<GameObject> object = m_scene->CreateGameObject();
             
             SafePtr<TransformComponent> transform = object->GetComponent<TransformComponent>();
-            transform->SetLocalPosition(Vec3f(i * 2.0f, 0.0f, 0.0f));
+            
+            int N = sqrtCount;
+
+            int ix = (i % N);
+            int iy = (i / N) % N;
+            int iz = (i / (N * N));
+
+            float cx = (N - 1) * 0.5f;
+
+            float x = (ix - cx) * 2.5f;
+            float y = (iy - cx) * 2.5f;
+            float z = (iz - cx) * 2.5f;
+            
+            transform->SetLocalPosition(Vec3f(x, y, z));
             
             SafePtr<MeshComponent> meshComp = object->AddComponent<MeshComponent>();
             meshComp->SetMesh(cubeMesh);

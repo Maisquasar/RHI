@@ -16,7 +16,7 @@ Scene::Scene()
     m_rootUUID = root->GetUUID();
 
     m_cameraData.transform = std::make_unique<TransformComponent>();
-    m_cameraData.transform->SetLocalPosition(Vec3f(2.0f, 2.0f, 2.0f));
+    m_cameraData.transform->SetLocalPosition(Vec3f::Zero());
 
     m_cameraData.transform->EOnUpdateModelMatrix += [this]()
     {
@@ -24,7 +24,7 @@ Scene::Scene()
         Mat4 view = Mat4::LookAtRH(m_cameraData.transform->GetLocalPosition(),
                                    m_cameraData.transform->GetLocalPosition() + m_cameraData.transform->GetForward(), 
                                    m_cameraData.transform->GetUp());
-        Mat4 projection = Mat4::CreateProjectionMatrix(45.f, aspect, 0.1f, 10.0f); 
+        Mat4 projection = Mat4::CreateProjectionMatrix(45.f, aspect, 0.01f, 1000.0f); 
         projection[1][1] *= -1;
 
         m_cameraData.VP = projection * view;
