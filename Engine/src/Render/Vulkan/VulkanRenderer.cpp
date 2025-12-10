@@ -305,21 +305,33 @@ void VulkanRenderer::EndFrame()
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void VulkanRenderer::DrawVertex(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer)
+void VulkanRenderer::SendPushConstants(void* data, size_t size, Shader* shader, PushConstant pushConstant) const
 {
     auto commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
+    VulkanPipeline* pipeline = static_cast<VulkanPipeline*>(shader->GetPipeline());
+    vkCmdPushConstants(commandBuffer, pipeline->GetPipelineLayout(),
+        pushConstant.shaderType == ShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT, 
+        pushConstant.offset, size, data);
+}
+
+void VulkanRenderer::BindVertexBuffers(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer) const
+{
+    VkCommandBuffer commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
     VulkanVertexBuffer* vertexBuffer = static_cast<VulkanVertexBuffer*>(_vertexBuffer);
     VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(_indexBuffer);
 
-    // Bind vertex buffer
     VkBuffer vkVertexBuffer = vertexBuffer->GetBuffer();
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vkVertexBuffer, offsets);
 
-    // Bind index buffer
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer->GetBuffer(), 0, indexBuffer->GetIndexType());
+}
 
-    // Draw indexed
+void VulkanRenderer::DrawVertex(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer)
+{
+    VkCommandBuffer commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
+    VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(_indexBuffer);
+    
     vkCmdDrawIndexed(commandBuffer, indexBuffer->GetIndexCount(), 1, 0, 0, 0);
 }
 
@@ -462,7 +474,7 @@ static void ParseBlockVariable(const SpvReflectBlockVariable* var, UniformMember
     }
 }
 
-static Uniforms SpirvReflectExample(const std::string& spirv)
+static Uniforms SpirvReflectUniforms(const std::string& spirv)
 {
     size_t spirv_nbytes = spirv.size();
     const void* spirv_code = spirv.data();
@@ -550,6 +562,72 @@ static Uniforms SpirvReflectExample(const std::string& spirv)
     return uniforms;
 }
 
+static std::optional<PushConstant> SpirvReflectPushConstants(const std::string& spirv)
+{
+    size_t spirv_nbytes = spirv.size();
+    const void* spirv_code = spirv.data();
+
+    if (spirv_nbytes % sizeof(uint32_t) != 0) {
+        PrintError("SPIR-V binary is corrupt or truncated");
+        return {};
+    }
+
+    SpvReflectShaderModule module;
+    SpvReflectResult result = spvReflectCreateShaderModule(
+        spirv_nbytes,
+        reinterpret_cast<const uint32_t*>(spirv_code),
+        &module);
+
+    if (result != SPV_REFLECT_RESULT_SUCCESS) {
+        PrintError("Failed to create SPIR-V Reflect Shader Module");
+        return {};
+    }
+
+    uint32_t pc_count = 0;
+    result = spvReflectEnumeratePushConstantBlocks(&module, &pc_count, NULL);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+    SpvReflectBlockVariable** pc_blocks =
+        static_cast<SpvReflectBlockVariable**>(malloc(pc_count * sizeof(SpvReflectBlockVariable*)));
+
+    if (pc_blocks == NULL) {
+        spvReflectDestroyShaderModule(&module);
+        PrintError("Failed to allocate memory for SPIR-V Reflect Push Constant blocks");
+        return {};
+    }
+
+    result = spvReflectEnumeratePushConstantBlocks(&module, &pc_count, pc_blocks);
+    assert(result == SPV_REFLECT_RESULT_SUCCESS);
+    
+    if (pc_count == 0)
+    {
+        return {};
+    }
+    assert(pc_count == 1);
+
+    std::vector<PushConstants> pushConstants;
+    PushConstant pc;
+    const SpvReflectBlockVariable* block = pc_blocks[0];
+
+    pc.name = block->name ? block->name : "";
+    pc.size = block->size;
+    
+    if (block->member_count > 0 && block->members) {
+        pc.members.reserve(block->member_count);
+        for (uint32_t m = 0; m < block->member_count; ++m) {
+            UniformMember mem;
+            ParseBlockVariable(&block->members[m], mem);
+            pc.members.push_back(std::move(mem));
+        }
+    }
+    std::string key = pc.name.empty() ? ("push_constant") : pc.name;
+
+    free(pc_blocks);
+    spvReflectDestroyShaderModule(&module);
+
+    return {pc};
+}
+
 Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 {
     VertexShader* vertex = shader->GetVertexShader();
@@ -558,7 +636,7 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
     Uniforms uniforms;
 
     Uniforms result = {};
-    result = SpirvReflectExample(vertex->GetContent());
+    result = SpirvReflectUniforms(vertex->GetContent());
     uniforms.reserve(result.size());
     for (auto& uniform : result | std::views::values)
     {
@@ -566,7 +644,7 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
         uniforms[uniform.name] = uniform;
     }
     
-    result = SpirvReflectExample(frag->GetContent());
+    result = SpirvReflectUniforms(frag->GetContent());
     uniforms.reserve(uniforms.size() + result.size());
     for (auto& uniform : result | std::views::values)
     {
@@ -575,6 +653,28 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
     }
     
     return uniforms;
+}
+
+PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
+{
+    VertexShader* vertex = shader->GetVertexShader();
+    FragmentShader* frag = shader->GetFragmentShader();
+    
+    PushConstants pushConstants;
+    std::optional<PushConstant> pushConstant = SpirvReflectPushConstants(vertex->GetContent());
+    if (pushConstant.has_value())
+    {
+        pushConstant.value().shaderType = ShaderType::Vertex;
+        pushConstants[ShaderType::Vertex] = pushConstant.value();
+    }
+    
+    pushConstant = SpirvReflectPushConstants(frag->GetContent());
+    if (pushConstant.has_value())
+    {
+        pushConstant.value().shaderType = ShaderType::Fragment;
+        pushConstants[ShaderType::Fragment] = pushConstant.value();
+    }
+    return pushConstants;
 }
 
 void VulkanRenderer::SendTexture(UBOBinding binding, Texture* texture, Shader* shader)
@@ -713,11 +813,10 @@ std::unique_ptr<RHIShaderBuffer> VulkanRenderer::CreateShaderBuffer(const std::s
     return std::move(shaderBuffer);
 }
 
-std::unique_ptr<RHIPipeline> VulkanRenderer::CreatePipeline(const VertexShader* vertexShader,
-                                                            const FragmentShader* fragmentShader, const Uniforms& uniforms)
+std::unique_ptr<RHIPipeline> VulkanRenderer::CreatePipeline(const Shader* shader)
 {
     std::unique_ptr<VulkanPipeline> pipeline = std::make_unique<VulkanPipeline>();
-    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), uniforms, vertexShader, fragmentShader, MAX_FRAMES_IN_FLIGHT, m_defaultTexture.get().get());
+    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), MAX_FRAMES_IN_FLIGHT, m_defaultTexture.get().get(), shader);
     return std::move(pipeline);
 }
 

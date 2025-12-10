@@ -158,3 +158,13 @@ void Material::SetAttribute(const std::string& name, const SafePtr<Texture>& tex
         m_temporaryAttributes.samplerAttributes[name] = texture;
     }
 }
+
+void Material::SetModel(const Mat4& model)
+{
+    
+}
+
+void Material::SetVP(const Mat4& vp)
+{
+    
+}

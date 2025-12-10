@@ -55,6 +55,9 @@ public:
     virtual void EndFrame() = 0;
     virtual bool MultiThreadSendToGPU() = 0;
     virtual void ClearColor() const = 0;
+    
+    virtual void BindVertexBuffers(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer) const = 0;
+    virtual void SendPushConstants(void* data, size_t size, Shader* shader, PushConstant pushConstant) const = 0;
     virtual void DrawVertex(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* indexBuffer) = 0;
     
     virtual void DrawFrame() {}
@@ -63,10 +66,12 @@ public:
     virtual std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) = 0;
     virtual std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) = 0;
     virtual std::unique_ptr<RHIShaderBuffer> CreateShaderBuffer(const std::string& code) = 0;
-    virtual std::unique_ptr<RHIPipeline> CreatePipeline(const VertexShader* vertexShader, const FragmentShader* fragmentShader, const Uniforms& uniforms) = 0;
+    virtual std::unique_ptr<RHIPipeline> CreatePipeline(const Shader* shader) = 0;
     
     virtual std::string CompileShader(ShaderType type, const std::string& code) = 0;
     virtual Uniforms GetUniforms(Shader* shader) = 0;
+    virtual PushConstants GetPushConstants(Shader* shader) = 0;
+    
     virtual void SendTexture(UBOBinding binding, Texture* texture, Shader* shader) = 0;
     virtual void SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader) = 0;
     virtual void BindShader(Shader* shader) = 0;

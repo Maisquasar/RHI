@@ -1,9 +1,11 @@
 #version 450
+layout(std140, set = 0, binding = 0) uniform CameraUBO {
+    mat4 viewProj;
+} cameraUBO;
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(push_constant) uniform PushConstants {
     mat4 model;
-    mat4 vp;
-} ubo;
+} pc;
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -14,9 +16,9 @@ layout(location = 0) out vec3 vNormal;
 layout(location = 1) out vec2 vTexCoord;
 
 void main() {
-    gl_Position = ubo.vp * ubo.model * vec4(inPosition, 1.0);
+    gl_Position = cameraUBO.viewProj * pc.model * vec4(inPosition, 1.0);
 
-    mat3 normalMatrix = transpose(inverse(mat3(ubo.model)));
+    mat3 normalMatrix = transpose(inverse(mat3(pc.model)));
     vNormal = normalize(normalMatrix * inNormal);
 
     vTexCoord = inTexCoord;

@@ -25,17 +25,8 @@ public:
     bool Initialize(VulkanDevice* device,
                     VkRenderPass renderPass,
                     VkExtent2D extent,
-                    const std::string& vertShaderPath,
-                    const std::string& fragShaderPath,
-                    const std::vector<VkDescriptorSetLayoutBinding>& bindings = {},
-                    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT,
-                    bool enableDepth = true, bool compiled = false);
-    
-    bool Initialize(VulkanDevice* device,
-                    VkRenderPass renderPass,
-                    VkExtent2D extent,
-                    const Uniforms& uniforms, const VertexShader* vertexShader, const FragmentShader* fragShader, uint32_t
-                    MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture);
+                    uint32_t
+                    MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture, const Shader* shader);
     
     void Cleanup();
 

@@ -8,6 +8,12 @@
 class Shader;
 class Texture;
 
+struct CustomAttributes
+{
+    void* data;
+    size_t size;
+};
+
 struct MaterialAttributes
 {
     std::unordered_map<std::string, float> floatAttributes;
@@ -46,6 +52,9 @@ public:
     void SetAttribute(const std::string& name, const Vec3f& attribute);
     void SetAttribute(const std::string& name, const Vec4f& attribute);
     void SetAttribute(const std::string& name, const SafePtr<Texture>& texture);
+    
+    void SetModel(const Mat4& model);
+    void SetVP(const Mat4& vp);
 private:
     SafePtr<Shader> m_shader;
     

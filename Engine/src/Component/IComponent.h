@@ -21,7 +21,7 @@ public:
     
     Core::UUID GetUUID() const { return m_uuid; }
     GameObject* GetGameObject() const { return m_gameObject; }
-private:
+protected:
     Core::UUID m_uuid;
     GameObject* m_gameObject = nullptr;
 };

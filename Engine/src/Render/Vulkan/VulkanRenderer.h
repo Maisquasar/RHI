@@ -54,6 +54,9 @@ public:
     bool BeginFrame() override;
     void Update() override;
     void EndFrame() override;
+    
+    void SendPushConstants(void* data, size_t size, Shader* shader, PushConstant pushConstant) const override;
+    void BindVertexBuffers(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer) const override;
     void DrawVertex(RHIVertexBuffer* _vertexBuffer, RHIIndexBuffer* _indexBuffer) override;
     
     void DrawFrame() override;
@@ -62,6 +65,8 @@ public:
 
     std::string CompileShader(ShaderType type, const std::string& code) override;
     Uniforms GetUniforms(Shader* shader) override;
+    PushConstants GetPushConstants(Shader* shader) override;
+    
     void SendTexture(UBOBinding binding, Texture* texture, Shader* shader) override;
     void SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader) override;
     void BindShader(Shader* shader) override;
@@ -70,7 +75,7 @@ public:
     std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) override;
     std::unique_ptr<RHIIndexBuffer> CreateIndexBuffer(const uint32_t* data, uint32_t size) override;
     std::unique_ptr<RHIShaderBuffer> CreateShaderBuffer(const std::string& code) override;
-    std::unique_ptr<RHIPipeline> CreatePipeline(const VertexShader* vertexShader, const FragmentShader* fragmentShader, const Uniforms& uniforms) override;
+    std::unique_ptr<RHIPipeline> CreatePipeline(const Shader* shader) override;
     
     void SetDefaultTexture(const SafePtr<Texture>& texture) override;
     void ClearColor() const override;

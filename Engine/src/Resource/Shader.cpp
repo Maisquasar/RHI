@@ -93,9 +93,10 @@ bool Shader::SendToGPU(RHIRenderer* renderer)
         return false;
     }
     
+    m_pushConstants = renderer->GetPushConstants(this);
     m_uniforms = renderer->GetUniforms(this);
     
-    m_pipeline = renderer->CreatePipeline(m_vertexShader.get().get(), m_fragmentShader.get().get(), m_uniforms);
+    m_pipeline = renderer->CreatePipeline(this);
     return true;
 }
 

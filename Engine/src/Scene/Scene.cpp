@@ -5,6 +5,7 @@
 #include "GameObject.h"
 #include "Component/IComponent.h"
 #include "Component/TransformComponent.h"
+#include "Core/Engine.h"
 #include "Debug/Log.h"
 
 
@@ -13,11 +14,21 @@ Scene::Scene()
     SafePtr<GameObject> root = CreateGameObject();
     root->SetName("Root");
     m_rootUUID = root->GetUUID();
+    
+    m_cameraData.position = Vec3f(2.0f, 2.0f, 2.0f);
+    m_cameraData.rotation = Quat::Identity();
+
+    Vec2i windowSize = Engine::Get()->GetWindow()->GetSize();
+    Mat4 view = Mat4::LookAtRH(m_cameraData.position, Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 1.0f, 0.0f));
+    Mat4 projection = Mat4::CreateProjectionMatrix(45.f,
+                                                   static_cast<float>(windowSize.x) / static_cast<float>(windowSize.y),
+                                                   0.1f, 10.0f);
+    projection[1][1] *= -1;
+    
+    m_cameraData.VP = projection * view;
 }
 
-Scene::~Scene()
-{
-}
+Scene::~Scene() = default;
 
 void Scene::OnRender(RHIRenderer* renderer)
 {

@@ -1,7 +1,7 @@
 ﻿#pragma once
-
 #include <unordered_map>
 #include <vector>
+#include <galaxymath/Maths.h>
 
 #include "ComponentHandler.h"
 #include "Utils/Type.h"
@@ -9,6 +9,15 @@
 class RHIRenderer;
 class IComponent;
 class GameObject;
+
+struct CameraData
+{
+    Vec3f position;
+    Quat rotation;
+    
+    Mat4 VP;
+};
+
 class Scene
 {
 public:
@@ -48,12 +57,16 @@ public:
     void RemoveAllComponents(GameObject* gameObject);
 #pragma endregion 
 
+    const CameraData& GetCameraData() const { return m_cameraData; }
 private:
     friend GameObject;
 
     Core::UUID m_rootUUID = UUID_INVALID;
     std::unordered_map<Core::UUID, std::shared_ptr<GameObject>> m_gameObjects;
     std::unordered_map<ComponentID, std::vector<std::shared_ptr<IComponent>>> m_components;
+    
+    CameraData m_cameraData;
+    
 };
 
 template<typename T>

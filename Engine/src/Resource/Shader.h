@@ -81,7 +81,17 @@ struct Uniform {
     ShaderType shaderType = ShaderType::None;
 };
 
+struct PushConstant
+{
+    std::string name;   
+    uint32_t size = 0;  
+    uint32_t offset = 0;
+    ShaderType shaderType = ShaderType::None;
+    std::vector<UniformMember> members;
+};
+
 using Uniforms = std::unordered_map<std::string, Uniform>;
+using PushConstants = std::unordered_map<ShaderType, PushConstant>;
 class Shader : public IResource
 {
 public:
@@ -95,6 +105,7 @@ public:
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
 
+    PushConstants GetPushConstants() const {return m_pushConstants;}
     Uniform GetUniform(const std::string& name) { return m_uniforms[name]; }
     Uniforms GetUniforms() const { return m_uniforms; }
     VertexShader* GetVertexShader() const { return m_vertexShader.get().get(); }
@@ -110,6 +121,7 @@ private:
     SafePtr<VertexShader> m_vertexShader;
     SafePtr<FragmentShader> m_fragmentShader;
 
+    PushConstants m_pushConstants;
     Uniforms m_uniforms;
     std::unique_ptr<RHIPipeline> m_pipeline;
 };

@@ -35,6 +35,7 @@ public:
     
     SafePtr<GameObject> GetParent();
     
+    Scene* GetScene() const { return &m_scene; }
 private:
     friend Scene;
     
