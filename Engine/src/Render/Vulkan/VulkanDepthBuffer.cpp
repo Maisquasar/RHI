@@ -26,12 +26,10 @@ bool VulkanDepthBuffer::Initialize(VulkanDevice* device, VkExtent2D extent)
 
     try
     {
-        // Create depth image
         CreateImage(device, extent.width, extent.height, m_depthFormat,
                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory);
 
-        // Create depth image view
         m_depthImageView = CreateImageView(device, m_depthImage, m_depthFormat,
                                           VK_IMAGE_ASPECT_DEPTH_BIT);
 

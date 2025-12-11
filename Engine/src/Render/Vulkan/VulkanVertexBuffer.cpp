@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "VulkanCommandPool.h"
+#include "Debug/Log.h"
 
 VulkanVertexBuffer::~VulkanVertexBuffer()
 {
@@ -56,13 +57,13 @@ void VulkanVertexBuffer::UpdateData(const void* data, VkDeviceSize size, VkDevic
 {
     if (!m_buffer)
     {
-        std::cerr << "Cannot update data: vertex buffer not initialized!" << std::endl;
+        PrintError("Cannot update data: vertex buffer not initialized!");
         return;
     }
     
     if (offset + size > m_size)
     {
-        std::cerr << "Update data exceeds buffer size!" << std::endl;
+        PrintError("Update data exceeds buffer size!");
         return;
     }
     
@@ -76,7 +77,7 @@ void VulkanVertexBuffer::Bind(VkCommandBuffer commandBuffer, uint32_t binding)
 {
     if (!m_buffer)
     {
-        std::cerr << "Cannot bind: vertex buffer not initialized!" << std::endl;
+        PrintError("Cannot bind: vertex buffer not initialized!");
         return;
     }
     
@@ -92,7 +93,7 @@ bool VulkanVertexBuffer::CreateVertexBuffer(VulkanDevice* device, const void* ve
                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
     {
-        std::cerr << "Failed to create staging buffer!" << std::endl;
+        PrintError("Failed to create staging buffer!");
         return false;
     }
     
@@ -103,7 +104,7 @@ bool VulkanVertexBuffer::CreateVertexBuffer(VulkanDevice* device, const void* ve
                               VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
     {
-        std::cerr << "Failed to create vertex buffer!" << std::endl;
+        PrintError("Failed to create vertex buffer!");
         stagingBuffer.Cleanup();
         delete m_buffer;
         m_buffer = nullptr;

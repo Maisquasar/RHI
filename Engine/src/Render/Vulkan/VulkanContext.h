@@ -21,7 +21,6 @@ public:
     std::vector<const char*> GetRequiredExtensions(Window* window) const;
     bool CheckExtensionSupport(const std::vector<const char*>& requiredExtensions) const;
 
-    // Getters
     VkInstance GetInstance() const { return m_instance; }
     VkSurfaceKHR GetSurface() const { return m_surface; }
 private:

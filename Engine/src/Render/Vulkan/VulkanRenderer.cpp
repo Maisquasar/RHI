@@ -239,8 +239,8 @@ bool VulkanRenderer::BeginFrame()
 
 void VulkanRenderer::DrawFrame()
 {
-    RecordCommandBuffer(m_commandPool->GetCommandBuffer(m_currentFrame), m_imageIndex);
 }
+
 bool VulkanRenderer::MultiThreadSendToGPU()
 {
 #ifdef MULTI_THREAD
@@ -735,50 +735,6 @@ std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Ima
 {
     std::unique_ptr<VulkanTexture> texture = std::make_unique<VulkanTexture>();
     texture->CreateFromImage(image, m_device.get(), m_commandPool.get(), m_device->GetGraphicsQueue());
-
-    /*
-    // Update descriptor sets with the texture
-    if (texture)
-    {
-        for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            // Update uniform buffer descriptor
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = m_uniformBuffer->GetBuffer(i);
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            // Update texture sampler descriptor
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = texture->GetImageView();
-            imageInfo.sampler = texture->GetSampler();
-
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = m_descriptorSet->GetDescriptorSet(i);
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = m_descriptorSet->GetDescriptorSet(i);
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(m_device->GetDevice(),
-                                   static_cast<uint32_t>(descriptorWrites.size()),
-                                   descriptorWrites.data(), 0, nullptr);
-        }
-    }
-    */
-
     return texture;
 }
 
@@ -842,72 +798,6 @@ void VulkanRenderer::ClearColor() const
                         m_swapChain->GetExtent(), clearValues);
 }
 
-void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
-{
-    /*
-    std::mutex& mutex = m_commandPool->GetMutex();
-    mutex.lock();
-    
-    // Begin render pass
-    ClearColor();
-
-    // Bind pipeline
-    m_pipeline->Bind(commandBuffer);
-
-    // Bind descriptor sets
-    VkDescriptorSet descriptorSet = m_descriptorSet->GetDescriptorSet(m_currentFrame);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            m_pipeline->GetPipelineLayout(), 0, 1,
-                            &descriptorSet, 0, nullptr);
-
-    // Set viewport and scissor dynamically
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_swapChain->GetExtent().width);
-    viewport.height = static_cast<float>(m_swapChain->GetExtent().height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_swapChain->GetExtent();
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-    // Draw the model if available
-    if (m_model && m_model->IsLoaded() && m_model->SentToGPU())
-    {
-        auto meshes = m_model->GetMeshes();
-
-        for (auto* mesh : meshes)
-        {
-            if (!mesh || !mesh->GetVertexBuffer() || !mesh->GetIndexBuffer())
-                continue;
-
-            VulkanVertexBuffer* vertexBuffer = static_cast<VulkanVertexBuffer*>(mesh->GetVertexBuffer());
-            VulkanIndexBuffer* indexBuffer = static_cast<VulkanIndexBuffer*>(mesh->GetIndexBuffer());
-
-            // Bind vertex buffer
-            VkBuffer vkVertexBuffer = vertexBuffer->GetBuffer();
-            VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vkVertexBuffer, offsets);
-
-            // Bind index buffer
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer->GetBuffer(), 0, indexBuffer->GetIndexType());
-
-            // Draw indexed
-            vkCmdDrawIndexed(commandBuffer, indexBuffer->GetIndexCount(), 1, 0, 0, 0);
-        }
-    }
-
-    // End render pass
-    m_renderPass->End(commandBuffer);
-    
-    mutex.unlock();
-    */
-}
-
 void VulkanRenderer::RecreateSwapChain()
 {
     Vec2i windowSize = m_window->GetSize();
@@ -925,7 +815,7 @@ void VulkanRenderer::RecreateSwapChain()
     m_framebuffer->Cleanup();
     m_swapChain->Cleanup();
     
-    m_depthBuffer->Cleanup(); // Destroy old resources
+    m_depthBuffer->Cleanup();
 
     // Recreate swap chain
     if (!m_swapChain->Initialize(m_device.get(), m_context->GetSurface(), m_window))

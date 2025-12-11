@@ -34,7 +34,6 @@ bool VulkanUniformBuffer::Initialize(VulkanDevice* device, VkDeviceSize size, ui
                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
         {
             std::cerr << "VulkanUniformBuffer::Initialize - failed to create uniform buffer for frame " << i << "\n";
-            // cleanup partial
             delete buf;
             buf = nullptr;
             Cleanup();
@@ -197,7 +196,6 @@ bool VulkanUniformBuffer::MapAll()
         if (res != VK_SUCCESS)
         {
             std::cerr << "VulkanUniformBuffer::MapAll - vkMapMemory failed for frame " << i << "\n";
-            // Unmap any already-mapped frames to leave a clean state
             for (size_t j = 0; j < i; ++j)
             {
                 if (m_mappedMemory[j])

@@ -34,7 +34,6 @@ public:
     uint32_t GetGraphicsQueueFamily() const { return m_queueFamilies.graphicsFamily.value(); }
     uint32_t GetPresentQueueFamily() const { return m_queueFamilies.presentFamily.value(); }
 
-    // Utility
     uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
     struct QueueFamilyIndices {

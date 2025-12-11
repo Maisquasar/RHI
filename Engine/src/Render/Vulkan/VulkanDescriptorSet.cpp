@@ -40,68 +40,7 @@ bool VulkanDescriptorSet::Initialize(VulkanDevice* device, VkDescriptorPool pool
 
 void VulkanDescriptorSet::Cleanup()
 {
-    // Note: Descriptor sets are automatically freed when the pool is destroyed
-    // No need to explicitly free them
     m_descriptorSets.clear();
-}
-
-void VulkanDescriptorSet::UpdateDescriptorSet(uint32_t index, VulkanUniformBuffer* uniformBuffer,
-                                              VulkanTexture* texture)
-{
-    if (index >= m_descriptorSets.size())
-    {
-        throw std::runtime_error("Invalid descriptor set index!");
-    }
-
-    std::vector<VkWriteDescriptorSet> descriptorWrites;
-
-    // Update uniform buffer descriptor
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = uniformBuffer->GetBuffer(index);
-    bufferInfo.offset = 0;
-    bufferInfo.range = uniformBuffer->GetSize();
-
-    VkWriteDescriptorSet uniformWrite{};
-    uniformWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    uniformWrite.dstSet = m_descriptorSets[index];
-    uniformWrite.dstBinding = 0;
-    uniformWrite.dstArrayElement = 0;
-    uniformWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniformWrite.descriptorCount = 1;
-    uniformWrite.pBufferInfo = &bufferInfo;
-
-    descriptorWrites.push_back(uniformWrite);
-
-    // Update texture sampler descriptor (if provided)
-    VkDescriptorImageInfo imageInfo{};
-    if (!texture)
-    {
-        texture = m_device->GetDefaultTexture();
-    }
-    if (texture)
-    {
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = texture->GetImageView();
-        imageInfo.sampler = texture->GetSampler();
-
-        VkWriteDescriptorSet samplerWrite{};
-        samplerWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        samplerWrite.dstSet = m_descriptorSets[index];
-        samplerWrite.dstBinding = 1;
-        samplerWrite.dstArrayElement = 0;
-        samplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerWrite.descriptorCount = 1;
-        samplerWrite.pImageInfo = &imageInfo;
-
-        descriptorWrites.push_back(samplerWrite);
-    }
-
-    if (!descriptorWrites.empty())
-    {
-        vkUpdateDescriptorSets(m_device->GetDevice(), 
-                              static_cast<uint32_t>(descriptorWrites.size()),
-                              descriptorWrites.data(), 0, nullptr);
-    }
 }
 
 VkDescriptorSet VulkanDescriptorSet::GetDescriptorSet(uint32_t index) const

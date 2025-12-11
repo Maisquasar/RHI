@@ -10,18 +10,32 @@ class Texture;
 
 struct CustomAttributes
 {
-    void* data;
-    size_t size;
+    void* data = nullptr;
+    size_t size = 0;
+};
+
+template<typename T>
+struct Attribute
+{
+    std::string uniformName;
+    T value;
+    
+    Attribute() = default;
+    Attribute(std::string uniformName, T value) : uniformName(std::move(uniformName)), value(value) {}
+    
+    void operator=(const T& value) { this->value = value; }
+    void operator=(const Attribute& attribute) { this->uniformName, this->value = attribute.value; }
 };
 
 struct MaterialAttributes
 {
-    std::unordered_map<std::string, float> floatAttributes;
-    std::unordered_map<std::string, int> intAttributes;
-    std::unordered_map<std::string, Vec2f> vec2Attributes;
-    std::unordered_map<std::string, Vec3f> vec3Attributes;
-    std::unordered_map<std::string, Vec4f> vec4Attributes;
-    std::unordered_map<std::string, SafePtr<Texture>> samplerAttributes;
+    std::unordered_map<std::string, Attribute<float>> floatAttributes;
+    std::unordered_map<std::string, Attribute<int>> intAttributes;
+    std::unordered_map<std::string, Attribute<Vec2f>> vec2Attributes;
+    std::unordered_map<std::string, Attribute<Vec3f>> vec3Attributes;
+    std::unordered_map<std::string, Attribute<Vec4f>> vec4Attributes;
+    std::unordered_map<std::string, Attribute<SafePtr<Texture>>> samplerAttributes;
+    std::unordered_map<std::string, Attribute<Mat4>> matrixAttributes;
     
     void Clear()
     {
@@ -52,9 +66,9 @@ public:
     void SetAttribute(const std::string& name, const Vec3f& attribute);
     void SetAttribute(const std::string& name, const Vec4f& attribute);
     void SetAttribute(const std::string& name, const SafePtr<Texture>& texture);
-    
-    void SetModel(const Mat4& model);
-    void SetVP(const Mat4& vp);
+    void SetAttribute(const std::string& name, const Mat4& attribute);
+
+    void SendAllValues(RHIRenderer* renderer);
 private:
     SafePtr<Shader> m_shader;
     

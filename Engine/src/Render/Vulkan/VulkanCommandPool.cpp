@@ -25,7 +25,6 @@ bool VulkanCommandPool::Initialize(VulkanDevice* device, uint32_t imageCount)
 
     try
     {
-        // Create command pool
         auto queueFamilyIndices = m_device->GetQueueFamilyIndices();
 
         VkCommandPoolCreateInfo poolInfo{};
@@ -45,7 +44,7 @@ bool VulkanCommandPool::Initialize(VulkanDevice* device, uint32_t imageCount)
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         // Use TRANSIENT for short-lived commands
         poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT; 
-        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(); // Or transfer family
+        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
         if (vkCreateCommandPool(m_device->GetDevice(), &poolInfo, nullptr, &m_transferCommandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create transfer command pool!");

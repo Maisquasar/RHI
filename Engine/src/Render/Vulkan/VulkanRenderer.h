@@ -80,7 +80,6 @@ public:
     void SetDefaultTexture(const SafePtr<Texture>& texture) override;
     void ClearColor() const override;
 private:
-    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void RecreateSwapChain();
 
 private:

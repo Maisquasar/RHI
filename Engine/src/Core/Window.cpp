@@ -11,13 +11,19 @@ std::unique_ptr<Window> Window::Create(WindowAPI windowAPI, RenderAPI renderAPI,
     switch (windowAPI)
     {
     case WindowAPI::GLFW:
+#ifdef WINDOW_API_GLFW
         window = std::make_unique<WindowGLFW>();
+#else
+        PrintError("Failed to create window with GLFW, not compiled with WINDOW_API_GLFW");
+        return nullptr;
+#endif
         break;
     case WindowAPI::SDL:
 #ifdef WINDOW_API_SDL
         window = std::make_unique<WindowSDL>();
 #else
-        return nullptr; // SDL is not enabled
+        PrintError("Failed to create window with SDL, not compiled with WINDOW_API_SDL");
+        return nullptr;
 #endif
         break;
     default:

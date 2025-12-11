@@ -23,10 +23,6 @@ public:
                    VkDescriptorSetLayout layout, uint32_t count);
     void Cleanup();
 
-    // Update descriptor set with uniform buffer and texture
-    void UpdateDescriptorSet(uint32_t index, VulkanUniformBuffer* uniformBuffer, 
-                            VulkanTexture* texture);
-
     VkDescriptorSet GetDescriptorSet(uint32_t index) const;
     
     void UpdateDescriptorSets(uint32_t frameIndex, uint32_t index, const Uniforms& uniforms, const UniformBuffers& uniformBuffers, Texture* defaultTexture) const;

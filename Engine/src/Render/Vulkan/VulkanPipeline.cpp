@@ -44,31 +44,6 @@ std::vector<char> CompileGLSLToSPV(const std::string& source, shaderc_shader_kin
 
 #include "spirv_reflect.h"
 
-int SpirvReflectExample(const void* spirv_code, size_t spirv_nbytes)
-{
-    // Generate reflection data for a shader
-    SpvReflectShaderModule module;
-    SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes, spirv_code, &module);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    // Enumerate and extract shader's input variables
-    uint32_t var_count = 0;
-    result = spvReflectEnumerateInputVariables(&module, &var_count, NULL);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-    SpvReflectInterfaceVariable** input_vars =
-      (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
-    result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    // Output variables, descriptor bindings, descriptor sets, and push constants
-    // can be enumerated and extracted using a similar mechanism.
-
-    // Destroy the reflection data when no longer required.
-    spvReflectDestroyShaderModule(&module);
-    
-    return 0;
-}
-
 VulkanPipeline::~VulkanPipeline()
 {
     Cleanup();
@@ -248,7 +223,6 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         colorBlending.blendConstants[3] = 0.0f;
 
         // --- Depth Stencil ---
-        
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         constexpr bool enableDepth = true;
         if (enableDepth)
@@ -262,7 +236,6 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         }
 
         // --- Pipeline Layout and Creation ---
-        
         std::vector<VkPushConstantRange> ranges = {};
         for (auto& pc : pushConstants)
         {
@@ -392,11 +365,6 @@ void VulkanPipeline::Cleanup()
 {
     if (!m_device)
         return;
-    // if (m_descriptorSetLayout != VK_NULL_HANDLE)
-    // {
-    //     vkDestroyDescriptorSetLayout(m_device->GetDevice(), m_descriptorSetLayout, nullptr);
-    //     m_descriptorSetLayout = VK_NULL_HANDLE;
-    // }
     if (m_pipeline != VK_NULL_HANDLE)
     {
         vkDestroyPipeline(m_device->GetDevice(), m_pipeline, nullptr);

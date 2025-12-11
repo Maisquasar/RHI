@@ -24,7 +24,7 @@ bool VulkanTexture::LoadFromFile(VulkanDevice* device, const std::string& filepa
     
     m_device = device;
     
-    // Load image using stb_image
+    //TODO: Move
     int texWidth, texHeight, texChannels;
     stbi_uc* pixels = stbi_load(filepath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     
@@ -36,7 +36,6 @@ bool VulkanTexture::LoadFromFile(VulkanDevice* device, const std::string& filepa
     p_height = static_cast<uint32_t>(texHeight);
     VkDeviceSize imageSize = p_width * p_height * 4;
     
-    // Use RAII wrapper for automatic cleanup
     VulkanBuffer stagingBuffer;
     
     if (!stagingBuffer.Initialize(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

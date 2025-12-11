@@ -98,7 +98,6 @@ bool VulkanIndexBuffer::CreateIndexBuffer(VulkanDevice* device, const void* indi
         return false;
     }
     
-    // Copy index data to staging buffer
     stagingBuffer.CopyData(indices, size);
     
     // Create index buffer on device local memory
