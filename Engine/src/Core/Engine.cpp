@@ -14,6 +14,7 @@
 #include "Scene/Scene.h"
 
 #include "Component/MeshComponent.h"
+#include "Component/TestComponent.h"
 #include "Component/TransformComponent.h"
 #include "Scene/GameObject.h"
 #include "Utils/Color.h"
@@ -72,9 +73,10 @@ void Engine::Run()
     
         size_t count = 3 * 3 * 3;
         float sqrtCount = std::pow(count, 1 / 3.f);
+            
         for (int i = 0; i < count; i++)
         {
-            auto mat = m_resourceManager->CreateMaterial("Material " + std::to_string(i));
+            auto mat = m_resourceManager->CreateMaterial("Material_" + std::to_string(i));
 
             float hue = i * 360 / count;
             
@@ -101,6 +103,10 @@ void Engine::Run()
             SafePtr<MeshComponent> meshComp = object->AddComponent<MeshComponent>();
             meshComp->SetMesh(cubeMesh);
             meshComp->AddMaterial(mat);
+            
+            {
+                object->AddComponent<TestComponent>();
+            }
         }
     });
     SafePtr cubeShader = m_resourceManager->GetDefaultShader();

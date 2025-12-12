@@ -133,7 +133,7 @@ bool VulkanRenderer::Initialize(Window* window)
             m_framebufferResized = true;
         });
 
-        PrintLog("Vulkan renderer initialized successfully!");
+        PrintLog("Vulkan renderer initialized successfully");
         return true;
     }
     catch (const std::exception& e)
@@ -308,7 +308,7 @@ void VulkanRenderer::EndFrame()
 void VulkanRenderer::SendPushConstants(void* data, size_t size, Shader* shader, PushConstant pushConstant) const
 {
     auto commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
-    VulkanPipeline* pipeline = static_cast<VulkanPipeline*>(shader->GetPipeline());
+    VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
     vkCmdPushConstants(commandBuffer, pipeline->GetPipelineLayout(),
         pushConstant.shaderType == ShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT, 
         pushConstant.offset, size, data);
@@ -677,41 +677,37 @@ PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
 
 void VulkanRenderer::SendTexture(UBOBinding binding, Texture* texture, Shader* shader)
 {
-    VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
-    auto descriptors = pipeline->GetDescriptorSets();
-    auto uniformBuffers = pipeline->GetUniformBuffers();
-    for (uint32_t j = 0; j < descriptors.size(); j++)
-    {
-        for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            descriptors[j]->UpdateDescriptorSets(i, j, shader->GetUniforms(), uniformBuffers, texture);
-        }
-    }
+    // VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
+    // auto descriptors = pipeline->GetDescriptorSets();
+    // auto uniformBuffers = pipeline->GetUniformBuffers();
+    // for (uint32_t j = 0; j < descriptors.size(); j++)
+    // {
+    //     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    //     {
+    //         descriptors[j]->UpdateDescriptorSets(i, j, shader->GetUniforms(), uniformBuffers, texture);
+    //     }
+    // }
 }
 
 void VulkanRenderer::SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader)
 {
-    VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
-
-    VulkanUniformBuffer* uniformBuffer = pipeline->GetUniformBuffer(binding.set, binding.binding);
-    
-    uniformBuffer->WriteToMapped(value, size, m_currentFrame);
+    // VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
+    //
+    // VulkanUniformBuffer* uniformBuffer = pipeline->GetUniformBuffer(binding.set, binding.binding);
+    //
+    // uniformBuffer->WriteToMapped(value, size, m_currentFrame);
 }
 
-void VulkanRenderer::BindShader(Shader* shader)
+void VulkanRenderer::BindShader(Shader* shader, Material* material)
 {
     VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
     auto commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
+    pipeline->Bind(commandBuffer);
     
     // Bind pipeline
     pipeline->Bind(commandBuffer);
 
-    // Bind descriptor sets
-    auto vkdescriptorSet = pipeline->GetDescriptorSets().front();
-    VkDescriptorSet descriptorSet = vkdescriptorSet->GetDescriptorSet(m_currentFrame);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->GetPipelineLayout(), 0, 1,
-                            &descriptorSet, 0, nullptr);
+    material->Bind(commandBuffer, m_currentFrame);
 
     // Set viewport and scissor dynamically
     VkViewport viewport{};
@@ -770,7 +766,7 @@ std::unique_ptr<RHIShaderBuffer> VulkanRenderer::CreateShaderBuffer(const std::s
 std::unique_ptr<RHIPipeline> VulkanRenderer::CreatePipeline(const Shader* shader)
 {
     std::unique_ptr<VulkanPipeline> pipeline = std::make_unique<VulkanPipeline>();
-    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), MAX_FRAMES_IN_FLIGHT, m_defaultTexture.get().get(), shader);
+    pipeline->Initialize(m_device.get(), m_renderPass->GetRenderPass(), m_swapChain->GetExtent(), MAX_FRAMES_IN_FLIGHT, shader);
     return std::move(pipeline);
 }
 

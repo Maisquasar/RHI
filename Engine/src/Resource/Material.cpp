@@ -4,6 +4,9 @@
 
 #include "Shader.h"
 #include "Debug/Log.h"
+#include "Render/Vulkan/VulkanMaterial.h"
+#include "Render/Vulkan/VulkanPipeline.h"
+#include "Render/Vulkan/VulkanRenderer.h"
 
 bool Material::Load(ResourceManager* resourceManager)
 {
@@ -104,6 +107,8 @@ void Material::SetShader(const SafePtr<Shader>& shader)
                     break;
             }
         }
+        auto pip = dynamic_cast<VulkanPipeline*>(m_shader->GetPipeline());
+        m_handle = pip->CreateMaterial(nullptr);
     });
 }
 
@@ -237,11 +242,16 @@ void Material::SendAllValues(RHIRenderer* renderer) const
         Uniform uniform = m_shader->GetUniform(uniformData.first);
         auto binding = UBOBinding(uniform.set, uniform.binding);
         
-        m_shader->SendValue(
-            binding, 
-            uniformData.second.data.data(),
+        m_handle->SetUniformData(
+            binding.set, 
+            binding.binding, 
+            uniformData.second.data.data(), 
             uniformData.second.data.size(), 
-            renderer
-        );
+            dynamic_cast<VulkanRenderer*>(renderer)->GetFrameIndex()); //TODO: Temp
     }
+}
+
+void Material::Bind(VkCommandBuffer commandBuffer, uint32_t uint32) const
+{
+    m_handle->BindDescriptorSets(commandBuffer, uint32);
 }

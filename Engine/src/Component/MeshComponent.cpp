@@ -23,8 +23,6 @@ void MeshComponent::OnUpdate(float deltaTime)
     {
         material->SetAttribute("viewProj", VP);
         
-        material->SetAttribute("color", static_cast<Vec4f>(Color::FromHSV(time, 1.f, 1.f)));
-        
         material->SendAllValues(renderer);
     }
 }
@@ -39,7 +37,7 @@ void MeshComponent::OnRender(RHIRenderer* renderer)
     for (auto& material : m_materials)
     {
         auto shader = material->GetShader().get().get();
-        renderer->BindShader(shader);
+        renderer->BindShader(shader, material.get().get());
 
         renderer->BindVertexBuffers(m_mesh->GetVertexBuffer(), m_mesh->GetIndexBuffer());
 

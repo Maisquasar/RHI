@@ -69,7 +69,7 @@ public:
     
     void SendTexture(UBOBinding binding, Texture* texture, Shader* shader) override;
     void SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader) override;
-    void BindShader(Shader* shader) override;
+    void BindShader(Shader* shader, Material* material) override;
     
     std::unique_ptr<RHITexture> CreateTexture(const ImageLoader::Image& image) override;
     std::unique_ptr<RHIVertexBuffer> CreateVertexBuffer(const float* data, uint32_t size, uint32_t floatPerVertex) override;
@@ -79,6 +79,8 @@ public:
     
     void SetDefaultTexture(const SafePtr<Texture>& texture) override;
     void ClearColor() const override;
+    
+    uint32_t GetFrameIndex() const { return m_currentFrame; }
 private:
     void RecreateSwapChain();
 

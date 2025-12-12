@@ -2,26 +2,24 @@
 #ifdef RENDER_API_VULKAN
 
 #include "VulkanPipeline.h"
+#include "VulkanMaterial.h"
 
 #include <filesystem>
-#include <vector>
-#include <array>
 #include <iostream>
 #include <fstream>
 #include <ranges>
 #include <stdexcept>
 
-#include "VulkanDevice.h"
 #include "VulkanUtils.h"
-
 #include "Resource/Mesh.h"
 #include "Resource/Shader.h"
+#include "VulkanShaderBuffer.h"
+#include "Debug/Log.h"
 
 #include <shaderc/shaderc.hpp>
 
-#include "VulkanShaderBuffer.h"
-#include "VulkanUniformBuffer.h"
-#include "Debug/Log.h"
+#include "Resource/FragmentShader.h"
+#include "Resource/VertexShader.h"
 
 std::vector<char> CompileGLSLToSPV(const std::string& source, shaderc_shader_kind kind) {
     shaderc::Compiler compiler;
@@ -31,7 +29,7 @@ std::vector<char> CompileGLSLToSPV(const std::string& source, shaderc_shader_kin
         compiler.CompileGlslToSpv(source, kind, "shader.glsl", options);
 
     if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-        PrintError("Shader compilation failed: %s", module.GetErrorMessage().c_str());;
+        PrintError("Shader compilation failed: %s", module.GetErrorMessage().c_str());
         return {};
     }
     
@@ -40,13 +38,6 @@ std::vector<char> CompileGLSLToSPV(const std::string& source, shaderc_shader_kin
     const char* begin = reinterpret_cast<const char*>(spirv.data());
     const char* end = begin + spirv.size() * sizeof(uint32_t);
     return std::vector<char>(begin, end);
-}
-
-#include "spirv_reflect.h"
-
-VulkanPipeline::~VulkanPipeline()
-{
-    Cleanup();
 }
 
 static VkDescriptorType ConvertType(UniformType type)
@@ -80,21 +71,26 @@ static VkShaderStageFlags ConvertType(ShaderType type)
     return VK_SHADER_STAGE_ALL;
 }
 
+VulkanPipeline::~VulkanPipeline()
+{
+    Cleanup();
+}
+
 bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, VkExtent2D extent,
-                                uint32_t MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture, const Shader* shader)
+                                uint32_t maxFramesInFlight, const Shader* shader)
 {
     auto uniforms = shader->GetUniforms();
     auto pushConstants = shader->GetPushConstants();
     auto fragShader = shader->GetFragmentShader();
     auto vertexShader = shader->GetVertexShader();
+    
     m_device = device;
+    m_maxFramesInFlight = maxFramesInFlight;
+    
     try
     {
-        // --- Descriptor Set Layouts and Pool Sizing ---
+        // --- Analyze Uniforms and Build Descriptor Set Layouts ---
         std::unordered_map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> layoutBindings;
-        std::unordered_map<VkDescriptorType, uint32_t> descriptorTypeCounts;
-
-        std::unordered_map<UBOBinding, uint32_t> uniformBufferSizes; 
 
         for (const auto& uniform : uniforms | std::views::values)
         {
@@ -106,27 +102,26 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
             layoutBinding.stageFlags = ConvertType(uniform.shaderType);
     
             layoutBindings[uniform.set].push_back(layoutBinding);
+            m_descriptorTypeCounts[layoutBinding.descriptorType] += 1;
 
-            descriptorTypeCounts[layoutBinding.descriptorType] += 1;
+            m_uniformsBySet[uniform.set].push_back(uniform);
 
-            // Track the size needed for this specific Uniform Buffer (set, binding)
             if (layoutBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
             {
-                UBOBinding key = UBOBinding{uniform.set, uniform.binding};
-                uniformBufferSizes[key] = uniform.size;
+                UBOBinding key = {uniform.set, uniform.binding};
+                m_uniformBufferSizes[key] = uniform.size;
             }
         }
 
+        // Create descriptor set layouts
         for (const auto& [set, bindings] : layoutBindings)
         {
-            std::unique_ptr<VulkanDescriptorSetLayout> vulkanDescriptorSetLayout = std::make_unique<
-                VulkanDescriptorSetLayout>(m_device->GetDevice());
-            m_descriptorSetLayouts.push_back(std::move(vulkanDescriptorSetLayout));
-            m_descriptorSetLayouts.back()->Create(m_device->GetDevice(), bindings);
+            auto layout = std::make_unique<VulkanDescriptorSetLayout>(m_device->GetDevice());
+            layout->Create(m_device->GetDevice(), bindings);
+            m_descriptorSetLayouts.push_back(std::move(layout));
         }
         
         // --- Shader Stages ---
-
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -142,7 +137,6 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
         // --- Vertex Input ---
-
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -159,20 +153,16 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         // --- Input Assembly ---
-
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-        // --- Viewport/Scissor (Dynamic) and Rasterization/Multisampling/Color Blend ---
-
+        // --- Viewport/Scissor (Dynamic) ---
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportState.viewportCount = 1;
         viewportState.scissorCount = 1;
-        viewportState.pViewports = nullptr;
-        viewportState.pScissors = nullptr;
 
         VkDynamicState dynamicStates[] = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -184,6 +174,7 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         dynamicState.dynamicStateCount = static_cast<uint32_t>(std::size(dynamicStates));
         dynamicState.pDynamicStates = dynamicStates;
 
+        // --- Rasterization ---
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer.depthClampEnable = VK_FALSE;
@@ -194,86 +185,68 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
+        // --- Multisampling ---
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling.sampleShadingEnable = VK_FALSE;
         multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+        // --- Color Blending ---
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask =
             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
             VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         colorBlendAttachment.blendEnable = VK_FALSE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
         VkPipelineColorBlendStateCreateInfo colorBlending{};
         colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
         colorBlending.logicOpEnable = VK_FALSE;
-        colorBlending.logicOp = VK_LOGIC_OP_COPY;
         colorBlending.attachmentCount = 1;
         colorBlending.pAttachments = &colorBlendAttachment;
-        colorBlending.blendConstants[0] = 0.0f;
-        colorBlending.blendConstants[1] = 0.0f;
-        colorBlending.blendConstants[2] = 0.0f;
-        colorBlending.blendConstants[3] = 0.0f;
 
         // --- Depth Stencil ---
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
-        constexpr bool enableDepth = true;
-        if (enableDepth)
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = VK_TRUE;
+        depthStencil.depthWriteEnable = VK_TRUE;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable = VK_FALSE;
+        depthStencil.stencilTestEnable = VK_FALSE;
+
+        // --- Push Constants ---
+        std::vector<VkPushConstantRange> ranges;
+        for (auto& [shaderType, pc] : pushConstants)
         {
-            depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-            depthStencil.depthTestEnable = VK_TRUE;
-            depthStencil.depthWriteEnable = VK_TRUE;
-            depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-            depthStencil.depthBoundsTestEnable = VK_FALSE;
-            depthStencil.stencilTestEnable = VK_FALSE;
+            VkShaderStageFlags shaderFlag = (shaderType == ShaderType::Vertex) 
+                ? VK_SHADER_STAGE_VERTEX_BIT 
+                : VK_SHADER_STAGE_FRAGMENT_BIT;
+                
+            ranges.push_back({
+                .stageFlags = shaderFlag,
+                .offset = pc.offset,
+                .size = pc.size
+            });
         }
 
-        // --- Pipeline Layout and Creation ---
-        std::vector<VkPushConstantRange> ranges = {};
-        for (auto& pc : pushConstants)
-        {
-            VkShaderStageFlags shaderFlag;
-            switch (pc.first)
-            {
-            case ShaderType::Vertex:
-                shaderFlag = VK_SHADER_STAGE_VERTEX_BIT;
-                break;
-            case ShaderType::Fragment:
-                shaderFlag = VK_SHADER_STAGE_FRAGMENT_BIT;
-                break;
-            }
-            VkPushConstantRange range;
-            range.stageFlags = shaderFlag;
-            range.offset = pc.second.offset;
-            range.size = pc.second.size;
-            ranges.push_back(range);
-        }
-
+        // --- Pipeline Layout ---
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         
         std::vector<VkDescriptorSetLayout> layouts;
         layouts.reserve(m_descriptorSetLayouts.size());
         for (const auto& layout : m_descriptorSetLayouts)
-        {
             layouts.push_back(layout->GetLayout());
-        }
+        
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
         pipelineLayoutInfo.pSetLayouts = layouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
+        pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(ranges.size());
         pipelineLayoutInfo.pPushConstantRanges = ranges.data();
 
         VkResult result = vkCreatePipelineLayout(m_device->GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout);
         if (result != VK_SUCCESS)
             throw std::runtime_error("Failed to create pipeline layout. VkResult: " + std::to_string(result));
 
+        // --- Graphics Pipeline ---
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
@@ -283,73 +256,16 @@ bool VulkanPipeline::Initialize(VulkanDevice* device, VkRenderPass renderPass, V
         pipelineInfo.pViewportState = &viewportState;
         pipelineInfo.pRasterizationState = &rasterizer;
         pipelineInfo.pMultisampleState = &multisampling;
-        pipelineInfo.pDepthStencilState = enableDepth ? &depthStencil : nullptr;
+        pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = m_pipelineLayout;
         pipelineInfo.renderPass = renderPass;
         pipelineInfo.subpass = 0;
-        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
         result = vkCreateGraphicsPipelines(m_device->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline);
         if (result != VK_SUCCESS)
             throw std::runtime_error("Failed to create graphics pipeline. VkResult: " + std::to_string(result));
-        
-        // --- UNIFORM BUFFER INITIALIZATION (Per-Binding) ---
-        
-        for (const auto& [key, size] : uniformBufferSizes)
-        {
-            uint32_t set = key.set;
-            uint32_t binding = key.binding;
-    
-            std::unique_ptr<VulkanUniformBuffer> ubo = std::make_unique<VulkanUniformBuffer>();
-
-            if (!ubo->Initialize(m_device, size, MAX_FRAMES_IN_FLIGHT)) 
-            {
-                PrintError("Failed to initialize uniform buffer for set %s binding %s!", set, binding);
-                return false;
-            }
-            ubo->MapAll();
-    
-            m_uniformBuffers[key] = std::move(ubo);
-        }
-        
-        // --- Descriptor Pool Creation ---
-        std::vector<VkDescriptorPoolSize> poolSizes;
-        poolSizes.reserve(descriptorTypeCounts.size());
-        for (const auto& [type, count] : descriptorTypeCounts)
-        {
-            poolSizes.push_back(
-            {
-                .type = type, 
-                .descriptorCount = count * MAX_FRAMES_IN_FLIGHT
-            }); 
-        }
-
-        m_descriptorPool = std::make_unique<VulkanDescriptorPool>();
-        
-        if (!m_descriptorPool->Initialize(m_device, poolSizes, 
-            static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * m_descriptorSetLayouts.size())))
-        {
-            PrintError("Failed to initialize descriptor pool!");
-            return false;
-        }
-        
-        // --- Descriptor Set Allocation/Initialization ---
-        for (const auto& m_descriptorSetLayout : m_descriptorSetLayouts)
-        {
-            std::unique_ptr<VulkanDescriptorSet> descriptorSet = std::make_unique<VulkanDescriptorSet>();
-            descriptorSet->Initialize(m_device, m_descriptorPool->GetPool(), m_descriptorSetLayout->GetLayout(), MAX_FRAMES_IN_FLIGHT);
-            m_descriptorSets.push_back(std::move(descriptorSet));
-        }
-        
-        for (uint32_t j = 0; j < m_descriptorSets.size(); j++)
-        {
-            for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            {
-                m_descriptorSets[j]->UpdateDescriptorSets(i, j, uniforms, GetUniformBuffers(), defaultTexture);
-            }
-        }
         
         return true;
     }
@@ -365,6 +281,9 @@ void VulkanPipeline::Cleanup()
 {
     if (!m_device)
         return;
+        
+    m_descriptorSetLayouts.clear();
+    
     if (m_pipeline != VK_NULL_HANDLE)
     {
         vkDestroyPipeline(m_device->GetDevice(), m_pipeline, nullptr);
@@ -378,46 +297,21 @@ void VulkanPipeline::Cleanup()
     }
 }
 
-std::vector<VulkanDescriptorSetLayout*> VulkanPipeline::GetDescriptorSetLayouts() const
-{
-    std::vector<VulkanDescriptorSetLayout*> layouts;
-    for (auto& layout : m_descriptorSetLayouts)
-        layouts.push_back(layout.get());
-    return layouts;
-}
-
-std::vector<VulkanDescriptorSet*> VulkanPipeline::GetDescriptorSets() const
-{
-    std::vector<VulkanDescriptorSet*> sets;
-    for (auto& set : m_descriptorSets)
-        sets.push_back(set.get());
-    return sets;
-}
-
 void VulkanPipeline::Bind(VkCommandBuffer commandBuffer)
 {
     if (m_pipeline != VK_NULL_HANDLE)
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 }
 
-UniformBuffers VulkanPipeline::GetUniformBuffers() const
+std::unique_ptr<VulkanMaterial> VulkanPipeline::CreateMaterial(Texture* defaultTexture)
 {
-    UniformBuffers uniforms;
-    for (const auto& [key, value] : m_uniformBuffers)
-        uniforms[key] = value.get();
-    return uniforms;
-}
-
-VulkanUniformBuffer* VulkanPipeline::GetUniformBuffer(UBOBinding binding) const
-{
-    RHIUniformBuffer* base = m_uniformBuffers.at(binding).get();
-    return dynamic_cast<VulkanUniformBuffer*>(base);
-}
-
-VulkanUniformBuffer* VulkanPipeline::GetUniformBuffer(int set, int binding) const
-{
-    RHIUniformBuffer* base = m_uniformBuffers.at({set, binding}).get();
-    return dynamic_cast<VulkanUniformBuffer*>(base);
+    auto material = std::make_unique<VulkanMaterial>(this);
+    if (!material->Initialize(2, defaultTexture, this))
+    {
+        PrintError("Failed to initialize material from pipeline");
+        return nullptr;
+    }
+    return std::move(material);
 }
 
 VkShaderModule VulkanPipeline::CreateShaderModule(const std::vector<char>& code) const
@@ -465,7 +359,6 @@ std::string VulkanPipeline::ReadFile(const std::string& filename)
     std::ifstream t(filename);
     std::stringstream buffer;
     buffer << t.rdbuf();
-
     return buffer.str();
 }
 

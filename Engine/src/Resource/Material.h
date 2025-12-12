@@ -4,6 +4,7 @@
 #include "IResource.h"
 
 #include "Utils/Type.h"
+#include "Render/Vulkan/VulkanMaterial.h"
 
 class Shader;
 class Texture;
@@ -71,7 +72,11 @@ public:
     void SetAttribute(const std::string& name, const Mat4& attribute);
 
     void SendAllValues(RHIRenderer* renderer) const;
+    
+    void Bind(VkCommandBuffer commandBuffer, uint32_t uint32) const;
+
 private:
+    std::unique_ptr<VulkanMaterial> m_handle;
     SafePtr<Shader> m_shader;
     
     MaterialAttributes m_attributes;

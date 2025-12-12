@@ -236,6 +236,8 @@ void ResourceManager::CreateCache()
 
     for (const auto& resource : m_resources | std::views::values)
     {
+        if (!resource)
+            continue;
         stream << resource->GetUUID() << " " << std::quoted(resource->GetPath().generic_string()) << "\n";
     }
 }

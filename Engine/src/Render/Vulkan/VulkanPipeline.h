@@ -1,59 +1,76 @@
 ﻿#pragma once
-#include "Resource/FragmentShader.h"
-#include "Resource/VertexShader.h"
 #ifdef RENDER_API_VULKAN
 
-#include <vulkan/vulkan.h>
-#include <string>
 #include <vector>
+#include <memory>
+#include <unordered_map>
+#include <string>
 
-#include "VulkanUniformBuffer.h"
-#include "VulkanDescriptorPool.h"
-#include "VulkanDescriptorSet.h"
+#include "VulkanDevice.h"
 #include "VulkanDescriptorSetLayout.h"
-#include "Render/RHI/RHIPipeline.h"
+#include "VulkanDescriptorPool.h"
+#include "Resource/Shader.h"
 
-struct Uniform;
-class VulkanDevice;
+class Shader;
+class Texture;
+class VulkanMaterial;
 
+// Pipeline now focuses on the graphics pipeline and layouts only
 class VulkanPipeline : public RHIPipeline
 {
 public:
     VulkanPipeline() = default;
     ~VulkanPipeline();
 
-    bool Initialize(VulkanDevice* device,
-                    VkRenderPass renderPass,
-                    VkExtent2D extent,
-                    uint32_t
-                    MAX_FRAMES_IN_FLIGHT, Texture* defaultTexture, const Shader* shader);
+    bool Initialize(VulkanDevice* device, VkRenderPass renderPass, VkExtent2D extent,
+                   uint32_t maxFramesInFlight, const Shader* shader);
     
     void Cleanup();
-
-    VkPipeline GetPipeline() const { return m_pipeline; }
-    VkPipelineLayout GetPipelineLayout() const { return m_pipelineLayout; }
-    std::vector<VulkanDescriptorSetLayout*> GetDescriptorSetLayouts() const;
-    std::vector<VulkanDescriptorSet*> GetDescriptorSets() const;
-
     void Bind(VkCommandBuffer commandBuffer);
 
-    UniformBuffers GetUniformBuffers() const;
-    VulkanUniformBuffer* GetUniformBuffer(UBOBinding binding) const;
-    VulkanUniformBuffer* GetUniformBuffer(int set, int binding) const;
+    // Create a material instance from this pipeline
+    std::unique_ptr<VulkanMaterial> CreateMaterial(Texture* defaultTexture);
 
+    // Getters
+    VkPipeline GetPipeline() const { return m_pipeline; }
+    VkPipelineLayout GetPipelineLayout() const { return m_pipelineLayout; }
+    VulkanDevice* GetDevice() const { return m_device; }
+    uint32_t GetMaxFramesInFlight() const { return m_maxFramesInFlight; }
+
+    std::vector<VulkanDescriptorSetLayout*> GetDescriptorSetLayouts() const 
+    { 
+        std::vector<VulkanDescriptorSetLayout*> layouts;
+        layouts.reserve(m_descriptorSetLayouts.size());
+        for (auto& layout : m_descriptorSetLayouts)
+            layouts.push_back(layout.get());
+        return layouts;
+    }
+    
+    const std::unordered_map<uint32_t, std::vector<Uniform>>& GetUniformsBySet() const 
+    { 
+        return m_uniformsBySet; 
+    }
+
+    const std::unordered_map<VkDescriptorType, uint32_t>& GetDescriptorTypeCounts() const 
+    { 
+        return m_descriptorTypeCounts; 
+    }
 private:
     VkShaderModule CreateShaderModule(const std::vector<char>& code) const;
-    std::vector<char> ReadFileBin(const std::string& filename);
-    std::string ReadFile(const std::string& filename);
+    static std::vector<char> ReadFileBin(const std::string& filename);
+    static std::string ReadFile(const std::string& filename);
 
     VulkanDevice* m_device = nullptr;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     
+    uint32_t m_maxFramesInFlight = 0;
+    
     std::vector<std::unique_ptr<VulkanDescriptorSetLayout>> m_descriptorSetLayouts;
-    std::unique_ptr<VulkanDescriptorPool> m_descriptorPool;
-    std::vector<std::unique_ptr<VulkanDescriptorSet>> m_descriptorSets;
-    UniformBuffersOwner m_uniformBuffers;
+    
+    std::unordered_map<uint32_t, std::vector<Uniform>> m_uniformsBySet;
+    std::unordered_map<UBOBinding, uint32_t> m_uniformBufferSizes;
+    std::unordered_map<VkDescriptorType, uint32_t> m_descriptorTypeCounts;
 };
 
 #endif

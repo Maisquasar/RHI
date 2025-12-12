@@ -8,6 +8,7 @@
 #include "RHITexture.h"
 #include "RHIUniformBuffer.h"
 #include "RHIVertexBuffer.h"
+#include "Resource/Material.h"
 
 #include "Resource/Shader.h"
 
@@ -74,7 +75,7 @@ public:
     
     virtual void SendTexture(UBOBinding binding, Texture* texture, Shader* shader) = 0;
     virtual void SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader) = 0;
-    virtual void BindShader(Shader* shader) = 0;
+    virtual void BindShader(Shader* shader, Material* material) = 0;
     
     virtual void SetDefaultTexture(const SafePtr<Texture>& texture) = 0;
     

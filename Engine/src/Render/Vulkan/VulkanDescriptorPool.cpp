@@ -27,8 +27,6 @@ bool VulkanDescriptorPool::Initialize(VulkanDevice* device, const std::vector<Vk
         PrintError("Failed to create descriptor pool!");
         return false;
     }
-
-    PrintLog("Descriptor pool created successfully!");
     return true;
 }
 
@@ -38,6 +36,5 @@ void VulkanDescriptorPool::Cleanup()
     {
         vkDestroyDescriptorPool(m_device->GetDevice(), m_descriptorPool, nullptr);
         m_descriptorPool = VK_NULL_HANDLE;
-        PrintLog("Descriptor pool destroyed");
     }
 }

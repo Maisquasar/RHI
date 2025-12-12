@@ -169,7 +169,7 @@ SafePtr<T> ResourceManager::Load(const std::filesystem::path& resourcePath, bool
             }
             if (resource->Load(this))
             {
-                PrintLog("Resource %s loaded", resource->GetPath().generic_string().c_str());
+                PrintLog("Resource loaded %s", resource->GetPath().generic_string().c_str());
                 resource->SetLoaded();
                 AddResourceToSend(uuid);
             }
@@ -179,7 +179,7 @@ SafePtr<T> ResourceManager::Load(const std::filesystem::path& resourcePath, bool
     {
         if (resource->Load(this))
         {
-            PrintLog("Resource %s loaded", resource->GetPath().generic_string().c_str());
+            PrintLog("Resource loaded %s", resource->GetPath().generic_string().c_str());
             resource->SetLoaded();
             if (resource->SendToGPU(m_renderer))
             {

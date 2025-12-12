@@ -33,8 +33,6 @@ bool VulkanDescriptorSet::Initialize(VulkanDevice* device, VkDescriptorPool pool
         PrintError("Failed to allocate descriptor sets!");
         return false;
     }
-
-    PrintLog("Descriptor sets allocated successfully! Count: %d", count);
     return true;
 }
 
