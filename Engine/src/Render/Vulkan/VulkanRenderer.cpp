@@ -768,11 +768,11 @@ void VulkanRenderer::SendValue(UBOBinding binding, void* value, uint32_t size, S
     // uniformBuffer->WriteToMapped(value, size, m_currentFrame);
 }
 
-void VulkanRenderer::BindMaterial(Material* material)
+bool VulkanRenderer::BindMaterial(Material* material)
 {
     auto shader = material->GetShader();
     if (!shader)
-        return;
+        return false;
     
     VulkanPipeline* pipeline = dynamic_cast<VulkanPipeline*>(shader->GetPipeline());
     auto commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
@@ -794,6 +794,8 @@ void VulkanRenderer::BindMaterial(Material* material)
     scissor.offset = {0, 0};
     scissor.extent = m_swapChain->GetExtent();
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+    
+    return true;
 }
 
 std::unique_ptr<RHITexture> VulkanRenderer::CreateTexture(const ImageLoader::Image& image)

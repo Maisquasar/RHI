@@ -19,29 +19,25 @@
 #include "Scene/GameObject.h"
 #include "Utils/Color.h"
 
-void Engine::Create()
+Engine* Engine::Create()
 {
     if (s_instance)
-        return;
+        return s_instance.get();
     s_instance = std::make_unique<Engine>();
+    return s_instance.get();
 }
 
-bool Engine::Initialize()
+bool Engine::Initialize(EngineDesc desc)
 {
-    WindowConfig config;
-    config.title = "Window Test";
-    config.size = Vec2i(1280, 720);
-    config.attributes = static_cast<WindowAttributes>(VSync);
-    m_window = Window::Create(WindowAPI::GLFW, RenderAPI::Vulkan, config);
-
+    m_window = desc.window;
     if (!m_window)
     {
-        PrintError("Failed to create window");
+        PrintError("No window provided");
         return false;
     }
 
-    m_renderer = RHIRenderer::Create(RenderAPI::Vulkan, m_window.get());
-    if (!m_renderer)
+    m_renderer = RHIRenderer::Create(RenderAPI::Vulkan, m_window);
+    if (!m_renderer || !m_renderer->IsInitialized())
     {
         PrintError("Failed to create renderer");
         return false;
@@ -59,11 +55,120 @@ bool Engine::Initialize()
     m_componentRegister->RegisterComponent<TransformComponent>();
     m_componentRegister->RegisterComponent<MeshComponent>();
     
+    m_scene = std::make_unique<Scene>();
+    
     return true;
 }
 
+bool Engine::BeginFrame()
+{
+    m_resourceManager->UpdateResourceToSend();
+    m_renderer->WaitUntilFrameFinished();
+    if (!m_renderer->BeginFrame())
+        return false;
+
+    return true;
+}
+
+void Engine::Update()
+{
+    static auto lastTime = std::chrono::high_resolution_clock::now();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    m_deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+    lastTime = currentTime;
+    
+    static bool init = false;
+    if (!init)
+    {        
+
+        SafePtr cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Suzanne.obj");
+        cubeModel->OnLoaded.Bind([cubeModel, this]()
+        {
+            SafePtr cubeMesh = m_resourceManager->GetResource<Mesh>(cubeModel->GetMeshes()[0]->GetPath());
+    
+            size_t count = std::pow(3, 3);
+            float sqrtCount = std::pow(count, 1 / 3.f);
+            
+            for (int i = 0; i < count; i++)
+            {
+                auto mat = m_resourceManager->CreateMaterial("Material_" + std::to_string(i));
+
+                float hue = i * 360 / count;
+            
+                mat->SetAttribute("color", static_cast<Vec4f>(Color::FromHSV(hue, 1.f, 1.f)));
+            
+                SafePtr<GameObject> object = m_scene->CreateGameObject();
+            
+                SafePtr<TransformComponent> transform = object->GetComponent<TransformComponent>();
+            
+                int N = sqrtCount;
+
+                int ix = (i % N);
+                int iy = (i / N) % N;
+                int iz = (i / (N * N));
+
+                float cx = (N - 1) * 0.5f;
+
+                float x = (ix - cx) * 2.5f;
+                float y = (iy - cx) * 2.5f;
+                float z = (iz - cx) * 2.5f;
+            
+                transform->SetLocalPosition(Vec3f(x, y, z));
+            
+                SafePtr<MeshComponent> meshComp = object->AddComponent<MeshComponent>();
+                meshComp->SetMesh(cubeMesh);
+                meshComp->AddMaterial(mat);
+            
+                {
+                    object->AddComponent<TestComponent>();
+                }
+            }
+        });
+        
+        init = true;
+    }
+    
+    m_scene->OnUpdate(m_deltaTime);
+}
+
+void Engine::Render()
+{        
+    m_renderer->ClearColor();
+
+    m_scene->OnRender(m_renderer.get());
+}
+
+void Engine::EndFrame()
+{
+    m_renderer->EndFrame();
+}
+
+/*
 void Engine::Run()
 {
+    m_resourceManager->UpdateResourceToSend();
+
+    if (!m_renderer->IsInitialized() || !cubeShader || !cubeShader->SentToGPU() || !m_ready)
+        continue;
+        
+    m_renderer->WaitUntilFrameFinished();
+
+    m_scene->OnUpdate(deltaTime);
+    if (!m_renderer->BeginFrame())
+        continue;
+
+    OnRender.Invoke();
+        
+    // ImGui::Begin("Test");
+    // ImGui::End();
+        
+    m_renderer->ClearColor();
+
+    m_scene->OnRender(m_renderer.get());
+        
+    OnEndFrame.Invoke();
+    m_renderer->EndFrame();
+    
     m_scene = std::make_unique<Scene>();
     
     SafePtr cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Suzanne.obj");
@@ -147,7 +252,9 @@ void Engine::Run()
         OnEndFrame.Invoke();
         m_renderer->EndFrame();
     }
+    
 }
+*/
 
 void Engine::Cleanup()
 {

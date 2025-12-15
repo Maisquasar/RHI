@@ -11,7 +11,7 @@
 #include <vulkan/vulkan.hpp>
 #endif
 
-enum class WindowAPI
+enum class ENGINE_API WindowAPI
 {
     GLFW,
     SDL,
@@ -23,7 +23,7 @@ enum class CoordinateSpace
     Screen
 };
 
-enum WindowAttributes : uint32_t
+enum ENGINE_API WindowAttributes : uint32_t
 {
     None = 0,
     VSync = 1 << 1,
@@ -32,14 +32,14 @@ enum WindowAttributes : uint32_t
     Transparent = 1 << 4
 };
 
-struct WindowConfig
+struct ENGINE_API WindowConfig
 {
     std::string title;
     Vec2i size;
     WindowAttributes attributes = WindowAttributes::None;
 };
 
-class Window
+class ENGINE_API Window
 {
 public:
     Window() = default;

@@ -1,6 +1,9 @@
 ﻿#pragma once
 #include <unordered_map>
 #include <vector>
+#include <shared_mutex>
+#include <mutex>
+
 #include <galaxymath/Maths.h>
 
 #include "ComponentHandler.h"
@@ -22,9 +25,9 @@ class Scene
 {
 public:
     Scene();
-    Scene& operator=(const Scene& other) = default;
-    Scene(const Scene&) = default;
-    Scene(Scene&&) noexcept = default;
+    Scene& operator=(const Scene& other) = delete;
+    Scene(const Scene&) = delete;
+    Scene(Scene&&) noexcept = delete;
     virtual ~Scene();
 
     void OnRender(RHIRenderer* renderer);
@@ -67,19 +70,22 @@ private:
     std::unordered_map<ComponentID, std::vector<std::shared_ptr<IComponent>>> m_components;
     
     CameraData m_cameraData;
+    
+    // Use recursive_mutex to allow same thread to lock multiple times
+    mutable std::recursive_mutex m_gameObjectsMutex;
+    mutable std::recursive_mutex m_componentsMutex;
 };
 
 template<typename T>
 SafePtr<T> Scene::GetComponent(GameObject* gameObject)
 {
-    static_assert(std::is_base_of_v<IComponent, T>, "T must inherit from IComponent");
+    std::scoped_lock lock(m_componentsMutex);
+    
+    auto it = m_components.find(ComponentRegister::GetComponentID<T>());
+    if (it == m_components.end()) return {};
 
-    auto& components = m_components[ComponentRegister::GetComponentID<T>()];
-
-    for (const std::shared_ptr<IComponent>& component : components)
-    {
-        if (component->GetGameObject() == gameObject)
-        {
+    for (const auto& component : it->second) {
+        if (component->GetGameObject() == gameObject) {
             return SafePtr<T>(std::static_pointer_cast<T>(component));
         }
     }
@@ -91,10 +97,13 @@ std::vector<SafePtr<T>> Scene::GetComponents(GameObject* gameObject)
 {
     static_assert(std::is_base_of_v<IComponent, T>, "T must inherit from IComponent");
 
+    std::scoped_lock lock(m_componentsMutex);
+    
     std::vector<SafePtr<T>> out;
-    auto& componentsList = m_components[ComponentRegister::GetComponentID<T>()];
+    auto it = m_components.find(ComponentRegister::GetComponentID<T>());
+    if (it == m_components.end()) return out;
 
-    for (const auto& component : componentsList)
+    for (const auto& component : it->second)
     {
         if (component->GetGameObject() == gameObject)
         {
@@ -116,7 +125,10 @@ SafePtr<T> Scene::AddComponent(GameObject* gameObject)
 {
     static_assert(std::is_base_of_v<IComponent, T>, "T must inherit from IComponent");
     auto component = std::make_shared<T>(gameObject);
+
+    std::scoped_lock lock(m_componentsMutex);
     m_components[ComponentRegister::GetComponentID<T>()].push_back(component);
+    
     return component;
 }
 
@@ -124,11 +136,21 @@ template<typename T>
 void Scene::RemoveComponent(GameObject* gameObject)
 {
     static_assert(std::is_base_of_v<IComponent, T>, "T must inherit from IComponent");
-    auto component = GetComponent<T>(gameObject);
-    if (!component)
+
+    std::scoped_lock lock(m_componentsMutex);
+    
+    auto it = m_components.find(ComponentRegister::GetComponentID<T>());
+    if (it == m_components.end()) return;
+    
+    auto& componentList = it->second;
+    auto removeIt = std::find_if(componentList.begin(), componentList.end(),
+        [gameObject](const std::shared_ptr<IComponent>& comp) {
+            return comp->GetGameObject() == gameObject;
+        });
+    
+    if (removeIt != componentList.end())
     {
-        return;
+        (*removeIt)->OnDestroy();
+        componentList.erase(removeIt);
     }
-    component->OnDestroy();
-    m_components[ComponentRegister::GetComponentID<T>()].erase(component);
 }

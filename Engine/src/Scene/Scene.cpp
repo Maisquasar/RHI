@@ -8,7 +8,6 @@
 #include "Core/Engine.h"
 #include "Debug/Log.h"
 
-
 Scene::Scene()
 {
     SafePtr<GameObject> root = CreateGameObject();
@@ -35,6 +34,8 @@ Scene::~Scene() = default;
 
 void Scene::OnRender(RHIRenderer* renderer)
 {
+    std::scoped_lock lock(m_componentsMutex);
+    
     for (const std::vector<std::shared_ptr<IComponent>>& componentList : m_components | std::views::values)
     {
         for (const std::shared_ptr<IComponent>& component : componentList)
@@ -47,6 +48,9 @@ void Scene::OnRender(RHIRenderer* renderer)
 void Scene::OnUpdate(float deltaTime)
 {
     UpdateCamera(deltaTime);
+
+    std::scoped_lock lock(m_componentsMutex);
+    
     for (const std::vector<std::shared_ptr<IComponent>>& componentList : m_components | std::views::values)
     {
         for (const std::shared_ptr<IComponent>& component : componentList)
@@ -59,8 +63,12 @@ void Scene::OnUpdate(float deltaTime)
 SafePtr<GameObject> Scene::CreateGameObject(GameObject* parent)
 {
     std::shared_ptr object = std::make_shared<GameObject>(*this);
-    m_gameObjects.emplace(object->GetUUID(), object);
-
+    
+    {
+        std::scoped_lock lock(m_gameObjectsMutex);
+        m_gameObjects.emplace(object->GetUUID(), object);
+    }
+    
     SetParent(object.get(), parent ? parent : (m_rootUUID != UUID_INVALID ? GetRootObject().get().get() : nullptr));
 
     object->AddComponent<TransformComponent>();
@@ -69,7 +77,12 @@ SafePtr<GameObject> Scene::CreateGameObject(GameObject* parent)
 
 SafePtr<GameObject> Scene::GetGameObject(Core::UUID uuid) const
 {
-    return m_gameObjects.at(uuid);
+    std::scoped_lock lock(m_gameObjectsMutex);
+    
+    auto it = m_gameObjects.find(uuid);
+    if (it != m_gameObjects.end())
+        return it->second;
+    return {};
 }
 
 SafePtr<GameObject> Scene::GetRootObject() const
@@ -85,7 +98,8 @@ void Scene::SetParent(GameObject* object, GameObject* parent)
     if (object->m_parentUUID != UUID_INVALID)
     {
         SafePtr<GameObject> prevParent = GetGameObject(object->m_parentUUID);
-        RemoveChild(prevParent.get().get(), object);
+        if (prevParent)
+            RemoveChild(prevParent.get().get(), object);
     }
 
     if (parent)
@@ -109,6 +123,8 @@ void Scene::RemoveChild(GameObject* object, GameObject* child)
 
 void Scene::DestroyGameObject(GameObject* gameObject)
 {
+    std::scoped_lock lock(m_gameObjectsMutex);
+    
     auto it = m_gameObjects.find(gameObject->GetUUID());
     if (it == m_gameObjects.end())
         return;
@@ -123,6 +139,8 @@ void Scene::RemoveAllComponents(GameObject* gameObject)
     if (!gameObject)
         return;
 
+    std::scoped_lock lock(m_componentsMutex);
+    
     for (auto& componentList : m_components | std::views::values)
     {
         auto removeIt = std::ranges::remove_if(componentList,
@@ -177,9 +195,9 @@ void Scene::UpdateCamera(float deltaTime) const
     
     if (!isLooking)
         return;
-    
-    const float speed = 10.f;
-    const float freeLookSensitivity = 0.5f;
+
+    constexpr float speed = 10.f;
+    constexpr float freeLookSensitivity = 0.5f;
     if (input.IsKeyDown(Key::W))
     {
         position += transform->GetForward() * speed * deltaTime;
@@ -222,5 +240,4 @@ void Scene::UpdateCamera(float deltaTime) const
 
     m_cameraData.transform->Rotate(Vec3f::Up(), -mouseX, Space::World);
     m_cameraData.transform->Rotate(Vec3f::Right(), -mouseY, Space::Local);
-
 }

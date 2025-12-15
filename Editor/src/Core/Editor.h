@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#include "Core/Window.h"
 
 #include "ImGuiHandler.h"
 
@@ -17,5 +18,5 @@ public:
 private:
     Engine* m_engine;
     std::unique_ptr<ImGuiHandler> m_imguiHandler;
-    
+    std::unique_ptr<Window> m_window = nullptr;
 };

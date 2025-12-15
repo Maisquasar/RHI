@@ -77,7 +77,7 @@ public:
     
     virtual void SendTexture(UBOBinding binding, Texture* texture, Shader* shader) = 0;
     virtual void SendValue(UBOBinding binding, void* value, uint32_t size, Shader* shader) = 0;
-    virtual void BindMaterial(Material* material) = 0;
+    virtual bool BindMaterial(Material* material) = 0;
     
     virtual void SetDefaultTexture(const SafePtr<Texture>& texture) = 0;
     
