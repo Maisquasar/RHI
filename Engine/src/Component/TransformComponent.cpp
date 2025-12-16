@@ -1,11 +1,26 @@
 ﻿#include "TransformComponent.h"
+#include "Scene/GameObject.h"
+
+void TransformComponent::Describe(ComponentDescriptor& d)
+{
+    d.AddVec3f("Position", m_localPosition);
+    d.AddQuat("Rotation", m_localRotation);
+    d.AddVec3f("Scale", m_localScale);
+}
 
 void TransformComponent::OnUpdate(float deltaTime)
 {
-    if (m_dirty)
-    {
-        ComputeModelMatrix();
-    }
+    UpdateMatrix();
+}
+
+Mat4 TransformComponent::GetWorldMatrix() const
+{
+    return m_modelMatrix;
+}
+
+Mat4 TransformComponent::GetLocalMatrix() const
+{
+    return Mat4::CreateTransformMatrix(m_localPosition, m_localRotation, m_localScale);
 }
 
 Vec3f TransformComponent::GetForward() const
@@ -31,14 +46,29 @@ void TransformComponent::SetLocalPosition(const Vec3f& position)
 
 void TransformComponent::SetWorldPosition(const Vec3f& position)
 {
-    //TODO
-    SetLocalPosition(position);
+    if (!p_gameObject)
+    {
+        SetLocalPosition(position);
+        return;
+    }
+
+    auto parent = p_gameObject->GetParent();
+    if (parent)
+    {
+        Mat4 parentWorldMatrix = parent->GetTransform()->GetWorldMatrix();
+        SetLocalPosition(parentWorldMatrix.GetInverseMatrix() * position);
+    }
+    else
+    {
+        SetLocalPosition(position);
+    }
 }
 
 Vec3f TransformComponent::GetWorldPosition() const
 {
-    //TODO
-    return GetLocalPosition();
+    if (!p_gameObject)
+        return m_localPosition;
+    return GetWorldMatrix().GetTranslation();
 }
 
 void TransformComponent::SetLocalRotation(const Quat& rotation)
@@ -49,14 +79,36 @@ void TransformComponent::SetLocalRotation(const Quat& rotation)
 
 void TransformComponent::SetWorldRotation(const Quat& rotation)
 {
-    //TODO:
-    SetLocalRotation(rotation);
+    if (!p_gameObject)
+    {
+        SetLocalRotation(rotation);
+        return;
+    }
+
+    auto parent = p_gameObject->GetParent();
+    if (parent)
+    {
+        // WorldRot = ParentRot * LocalRot  ->  LocalRot = ParentRot_Inverse * WorldRot
+        Quat parentRotation = parent->GetTransform()->GetWorldRotation();
+        SetLocalRotation(parentRotation.GetInverse() * rotation);
+    }
+    else
+    {
+        SetLocalRotation(rotation);
+    }
 }
 
 Quat TransformComponent::GetWorldRotation() const
 {
-    //TODO
-    return GetLocalRotation();
+    if (!p_gameObject)
+        return m_localRotation;
+
+    auto parent = p_gameObject->GetParent();
+    if (parent)
+    {
+        return parent->GetTransform()->GetWorldRotation() * m_localRotation;
+    }
+    return m_localRotation;
 }
 
 void TransformComponent::SetLocalScale(const Vec3f& scale)
@@ -66,15 +118,43 @@ void TransformComponent::SetLocalScale(const Vec3f& scale)
 }
 
 void TransformComponent::SetWorldScale(const Vec3f& scale)
-{    
-    //TODO
-    SetLocalScale(scale);
+{
+    if (!p_gameObject)
+    {
+        SetLocalScale(scale);
+        return;
+    }
+
+    auto parent = p_gameObject->GetParent();
+    if (parent)
+    {
+        Vec3f parentScale = parent->GetTransform()->GetWorldScale();
+
+        // Guard against division by zero
+        Vec3f newLocalScale;
+        newLocalScale.x = (parentScale.x != 0.0f) ? scale.x / parentScale.x : 0.0f;
+        newLocalScale.y = (parentScale.y != 0.0f) ? scale.y / parentScale.y : 0.0f;
+        newLocalScale.z = (parentScale.z != 0.0f) ? scale.z / parentScale.z : 0.0f;
+
+        SetLocalScale(newLocalScale);
+    }
+    else
+    {
+        SetLocalScale(scale);
+    }
 }
 
 Vec3f TransformComponent::GetWorldScale() const
 {
-    //TODO
-    return GetLocalScale(); 
+    if (!p_gameObject)
+        return m_localScale;
+    auto parent = p_gameObject->GetParent();
+    if (parent)
+    {
+        Vec3f parentScale = parent->GetTransform()->GetWorldScale();
+        return parentScale * m_localScale;
+    }
+    return m_localScale;
 }
 
 void TransformComponent::Rotate(const Vec3f& axis, const float angle, Space relativeTo)
@@ -115,12 +195,46 @@ void TransformComponent::RotateAround(const Vec3f axis, const float angle)
 
 Vec3f TransformComponent::TransformDirection(Vec3f dir) const
 {
-	return GetWorldRotation() * dir;
+    return GetWorldRotation() * dir;
+}
+
+void TransformComponent::UpdateMatrix()
+{
+    if (!m_dirty) 
+        return;
+    if (!p_gameObject)
+    {
+        ComputeModelMatrix();
+        return;
+    }
+    if (SafePtr<GameObject> parent = p_gameObject->GetParent())
+    {
+        ComputeModelMatrix(parent->GetTransform()->GetWorldMatrix());
+    }
+    else
+    {
+        ComputeModelMatrix();
+    }
+    
+    for (auto& child : p_gameObject->GetChildren())
+    {
+        child->GetTransform()->UpdateMatrix();
+    }
+}
+
+void TransformComponent::ComputeModelMatrix(const Mat4& parentMatrix)
+{
+    UpdateModelMatrix(parentMatrix * GetLocalMatrix());
 }
 
 void TransformComponent::ComputeModelMatrix()
 {
-    m_modelMatrix = Mat4::CreateTransformMatrix(m_localPosition, m_localRotation, m_localScale);
+    UpdateModelMatrix(GetLocalMatrix());
+}
+
+void TransformComponent::UpdateModelMatrix(const Mat4& matrix)
+{
+    m_modelMatrix = matrix;
     EOnUpdateModelMatrix.Invoke();
     m_dirty = false;
 }

@@ -54,6 +54,7 @@ bool Engine::Initialize(EngineDesc desc)
     m_componentRegister = std::make_unique<ComponentRegister>();
     m_componentRegister->RegisterComponent<TransformComponent>();
     m_componentRegister->RegisterComponent<MeshComponent>();
+    m_componentRegister->RegisterComponent<TestComponent>();
     
     m_sceneHolder = std::make_unique<SceneHolder>();
     m_sceneHolder->Initialize();
@@ -82,12 +83,13 @@ void Engine::Update()
     if (!init)
     {        
 
-        SafePtr cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Suzanne.obj");
+        SafePtr cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Cube.obj");
+        cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Suzanne.obj");
         cubeModel->OnLoaded.Bind([cubeModel, this]()
         {
             SafePtr cubeMesh = m_resourceManager->GetResource<Mesh>(cubeModel->GetMeshes()[0]->GetPath());
     
-            size_t count = std::pow(3, 3);
+            size_t count = std::pow(1, 3);
             float sqrtCount = std::pow(count, 1 / 3.f);
             
             for (int i = 0; i < count; i++)
@@ -120,9 +122,7 @@ void Engine::Update()
                 meshComp->SetMesh(cubeMesh);
                 meshComp->AddMaterial(mat);
             
-                {
-                    object->AddComponent<TestComponent>();
-                }
+                object->AddComponent<TestComponent>();
             }
         });
         

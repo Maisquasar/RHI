@@ -2,9 +2,14 @@
 
 #include "Component/MeshComponent.h"
 #include "Component/TransformComponent.h"
+
 #include "Core/Engine.h"
+#include "Resource/ResourceManager.h"
+
 #include "Scene/GameObject.h"
 #include "Scene/Scene.h"
+
+#include "Resource/Mesh.h"
 
 Inspector::Inspector(Engine* engine) : EditorWindow(engine)
 {
@@ -28,12 +33,27 @@ void Inspector::OnRender()
             ImGui::Text("Name: %s", object->GetName().c_str());
 
             auto components = object->GetComponents();
-            for (auto& component : components)
+            for (SafePtr<IComponent>& component : components)
             {
-                // ImGui::Text("Component: %s", component->GetTypeName().c_str());
-                if (ImGui::CollapsingHeader(component->GetTypeName().c_str()))
+                ImGui::PushID(component->GetUUID());
+
+                bool enable = component->IsEnable();
+                if (ImGui::Checkbox("##", &enable))
                 {
+                    component->SetEnable(enable);
                 }
+                ImGui::SameLine();
+
+                bool destroy = true;
+                const bool open = ImGui::CollapsingHeader(component->GetTypeName(), &destroy, ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+                
+                if (open)
+                {
+                    ComponentDescriptor descriptor;
+                    component->Describe(descriptor);
+                    ShowComponent(descriptor);
+                }
+                ImGui::PopID();
             }
         }
     }
@@ -43,4 +63,107 @@ void Inspector::OnRender()
 void Inspector::SetSelectedObject(Core::UUID uuid)
 {
     m_selectedObject = uuid;
+}
+
+void Inspector::ShowComponent(const ComponentDescriptor& descriptor) const
+{
+    //TODO: Setter for transform case
+    for (auto& property : descriptor.properties)
+    {
+        switch (property.type) {
+        case PropertyType::None:
+            ImGui::Text("None");
+            break;
+        case PropertyType::Bool:
+            ImGui::Checkbox(property.name.c_str(), static_cast<bool*>(property.data));
+            break;
+        case PropertyType::Float:
+            ImGui::DragFloat(property.name.c_str(), static_cast<float*>(property.data));
+            break;
+        case PropertyType::Vec2f:
+            ImGui::DragFloat2(property.name.c_str(), &static_cast<Vec2f*>(property.data)->x);
+            break;
+        case PropertyType::Vec3f:
+            ImGui::DragFloat3(property.name.c_str(), &static_cast<Vec3f*>(property.data)->x);
+            break;
+        case PropertyType::Vec4f:
+            ImGui::DragFloat4(property.name.c_str(), &static_cast<Vec4f*>(property.data)->x);
+            break;
+        case PropertyType::Quat:
+            {
+                auto quat = static_cast<Quat*>(property.data);
+                auto euler = quat->ToEuler();
+                if (ImGui::DragFloat3(property.name.c_str(), &euler.x))
+                {
+                    *quat = Quat::FromEuler(euler);
+                }
+                break;
+            }
+        case PropertyType::Color3:
+            ImGui::ColorEdit3(property.name.c_str(), &static_cast<Vec3f*>(property.data)->x);
+            break;
+        case PropertyType::Color4:
+            ImGui::ColorEdit4(property.name.c_str(), &static_cast<Vec4f*>(property.data)->x);
+            break;
+        
+        case PropertyType::Mesh:
+            {
+                SafePtr<Mesh>* meshPtr = static_cast<SafePtr<Mesh>*>(property.data);
+                SafePtr<Mesh> mesh = *meshPtr;
+                auto meshName = mesh->GetName();
+                if (ImGui::Button(meshName.c_str()))
+                {
+                    ImGui::OpenPopup("Mesh Popup");
+                }
+                if (ImGui::BeginPopup("Mesh Popup"))
+                {
+                    auto resourceManager = p_engine->GetResourceManager();
+                    auto meshes = resourceManager->GetAll<Mesh>();
+                    for (auto& mesh : meshes)
+                    {
+                        ImGui::PushID(mesh->GetUUID());
+                        if (ImGui::MenuItem(mesh->GetName().c_str()))
+                        {
+                            *meshPtr = mesh;
+                        }
+                        ImGui::PopID();
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+            break;
+        case PropertyType::Materials:
+            {
+                auto materials = static_cast<std::vector<SafePtr<Material>>*>(property.data);
+                auto materialList = *materials;
+                for (SafePtr<Material>& material : materialList)
+                {
+                    ImGui::PushID(material->GetUUID());
+                    auto meshName = material->GetName();
+                    if (ImGui::Button(meshName.c_str()))
+                    {
+                        ImGui::OpenPopup("Material Popup");
+                    }
+                    if (ImGui::BeginPopup("Material Popup"))
+                    {
+                        auto resourceManager = p_engine->GetResourceManager();
+                        auto allMaterials = resourceManager->GetAll<Material>();
+                        for (auto& mat : allMaterials)
+                        {
+                            ImGui::PushID(mat->GetUUID());
+                            if (ImGui::MenuItem(mat->GetName().c_str()))
+                            {
+                                material = mat;
+                            }
+                            ImGui::PopID();
+                        }
+                        ImGui::EndPopup();
+                    }
+                    ImGui::PopID();
+                }
+                *materials = materialList;
+                break;
+            }
+        }
+    }
 }

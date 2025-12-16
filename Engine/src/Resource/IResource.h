@@ -52,6 +52,17 @@ inline static std::unordered_map<std::string, ResourceType> extensionToResourceT
     { "shader", ResourceType::Shader }
 };
 
+#define DECLARE_RESOURCE_TYPE_PARENT(T, U) \
+    T(std::filesystem::path path) : U(std::move(path)) {} \
+    T(const T&) = delete; \
+    T(T&&) = delete; \
+    T& operator=(const T&) = delete; \
+    ~T() override = default; \
+    static ResourceType GetStaticResourceType() { return ResourceType::T; } \
+    virtual ResourceType GetResourceType() const override { return GetStaticResourceType(); }
+
+#define DECLARE_RESOURCE_TYPE(T) DECLARE_RESOURCE_TYPE_PARENT(T, IResource)
+
 class IResource
 {
 public:
@@ -69,6 +80,8 @@ public:
 
     Core::UUID GetUUID() const { return p_uuid; }
     std::filesystem::path GetPath() const { return p_path; }
+
+    std::string GetName() const;
     bool IsLoaded() const { return p_isLoaded; }
     bool SentToGPU() const { return p_sendToGPU; }
     

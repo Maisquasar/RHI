@@ -6,17 +6,11 @@
 class Texture : public IResource
 {
 public:
-    explicit Texture(std::filesystem::path path) : IResource(std::move(path)) {}
-    Texture(const Texture&) = delete;
-    Texture(Texture&&) = delete;
-    Texture& operator=(const Texture&) = delete;
-    ~Texture() override = default;
+    DECLARE_RESOURCE_TYPE(Texture)
 
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
-    
-    ResourceType GetResourceType() const override { return ResourceType::Texture; }
     
     RHITexture* GetBuffer() const { return m_buffer.get(); }
 private:

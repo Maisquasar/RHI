@@ -8,17 +8,11 @@ class Mesh;
 class Model : public IResource
 {
 public:
-    Model(const std::filesystem::path& path) : IResource(path) {}
-    Model(const Model&) = delete;
-    Model(Model&&) = delete;
-    Model& operator=(const Model&) = delete;
-    ~Model() override = default;
+    DECLARE_RESOURCE_TYPE(Model)
 
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
-    
-    ResourceType GetResourceType() const override { return ResourceType::Model; }
     
     std::vector<Mesh*> GetMeshes() const { return m_meshes; }
 private:

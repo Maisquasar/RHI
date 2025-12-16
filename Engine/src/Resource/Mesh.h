@@ -68,17 +68,11 @@ struct SubMesh
 class Mesh : public IResource
 {
 public:
-    Mesh(std::filesystem::path path) : IResource(std::move(path)) {}
-    Mesh(const Mesh&) = delete;
-    Mesh(Mesh&&) = delete;
-    Mesh& operator=(const Mesh&) = delete;
-    ~Mesh() override = default;
+    DECLARE_RESOURCE_TYPE(Mesh)
 
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
-    
-    ResourceType GetResourceType() const override { return ResourceType::Mesh; }
 
     RHIVertexBuffer* GetVertexBuffer() const { return m_vertexBuffer.get(); }
     RHIIndexBuffer* GetIndexBuffer() const { return m_indexBuffer.get(); }

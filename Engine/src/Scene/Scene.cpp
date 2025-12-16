@@ -40,7 +40,8 @@ void Scene::OnRender(RHIRenderer* renderer)
     {
         for (const std::shared_ptr<IComponent>& component : componentList)
         {
-            component->OnRender(renderer);
+            if (component->IsEnable())
+                component->OnRender(renderer);
         }
     }
 }
@@ -55,7 +56,8 @@ void Scene::OnUpdate(float deltaTime)
     {
         for (const std::shared_ptr<IComponent>& component : componentList)
         {
-            component->OnUpdate(deltaTime);
+            if (component->IsEnable())
+                component->OnUpdate(deltaTime);
         }
     }
 }
@@ -71,8 +73,7 @@ SafePtr<GameObject> Scene::CreateGameObject(GameObject* parent)
     }
     
     SetParent(object.get(), parent ? parent : (m_rootUUID != UUID_INVALID ? GetRootObject().get().get() : nullptr));
-
-    object->AddComponent<TransformComponent>();
+    
     return object;
 }
 
@@ -156,6 +157,24 @@ void Scene::DestroyGameObject(GameObject* gameObject)
     RemoveAllComponents(gameObject);
 
     m_gameObjects.erase(it);
+}
+
+void Scene::RemoveComponent(Core::UUID compId)
+{
+    for (auto& componentList : m_components | std::views::values)
+    {
+        auto removeIt = std::ranges::remove_if(componentList,
+           [compId](const std::shared_ptr<IComponent>& component)
+           {
+               if (component->GetUUID() == compId)
+               {
+                   component->OnDestroy();
+                   return true;
+               }
+               return false;
+           }
+        ).begin();
+    }
 }
 
 void Scene::RemoveAllComponents(GameObject* gameObject)

@@ -3,6 +3,8 @@
 
 #include "Utils/Type.h"
 
+#include "Component/TransformComponent.h"
+
 #include "Scene.h"
 
 class Scene;
@@ -10,7 +12,7 @@ class Scene;
 class GameObject
 {
 public:
-    GameObject(Scene& scene) : m_scene(scene) {}
+    GameObject(Scene& scene);
     GameObject& operator=(const GameObject& other) = delete;
     GameObject(const GameObject&) = delete;
     GameObject(GameObject&&) noexcept = delete;
@@ -18,6 +20,8 @@ public:
     
     template<typename T>
     SafePtr<T> GetComponent();
+    
+    SafePtr<TransformComponent> GetTransform() const { return m_transform; }
 
     template<typename T>
     SafePtr<T> AddComponent();
@@ -28,14 +32,18 @@ public:
     bool HasComponent() const;
 
     template<typename T>
-    void RemoveComponent() const;
+    void RemoveComponent();
+    void RemoveComponent(Core::UUID compId) const;
 
     Core::UUID GetUUID() const { return m_uuid; }
     
     void SetName(const std::string& name) { m_name = name; }
     std::string GetName() const { return m_name; }
     
+    bool HasParent() const;
     SafePtr<GameObject> GetParent() const;
+    
+    std::vector<SafePtr<GameObject>> GetChildren() const;
     
     Scene* GetScene() const { return &m_scene; }
 private:
@@ -48,11 +56,15 @@ private:
     
     Core::UUID m_parentUUID = UUID_INVALID;
     std::set<Core::UUID> m_childrenUUID = {};
+    
+    SafePtr<TransformComponent> m_transform = {};
 };
 
 template<typename T>
 SafePtr<T> GameObject::GetComponent() 
 {
+    if (std::is_same_v<T, TransformComponent>)
+        return m_transform;
     return m_scene.GetComponent<T>(this);
 }
 
@@ -69,7 +81,7 @@ bool GameObject::HasComponent() const
 }
 
 template<typename T>
-void GameObject::RemoveComponent() const 
+void GameObject::RemoveComponent()
 {
     m_scene.RemoveComponent<T>(this);
 }

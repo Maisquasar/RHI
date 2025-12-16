@@ -59,6 +59,7 @@ public:
 
     template<typename T>
     void RemoveComponent(GameObject* gameObject);
+    void RemoveComponent(Core::UUID compId);
     
     void RemoveAllComponents(GameObject* gameObject);
 #pragma endregion 
@@ -133,6 +134,7 @@ SafePtr<T> Scene::AddComponent(GameObject* gameObject)
 
     std::scoped_lock lock(m_componentsMutex);
     m_components[ComponentRegister::GetComponentID<T>()].push_back(component);
+    component->OnCreate();
     
     return component;
 }

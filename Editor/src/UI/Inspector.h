@@ -1,6 +1,7 @@
 #pragma once
 #include "EditorWindow.h"
 #include "Core/UUID.h"
+#include "Scene/ComponentDescriptor.h"
 #include "Utils/Type.h"
 
 class SceneHolder;
@@ -14,6 +15,7 @@ public:
     
     void SetSelectedObject(Core::UUID uuid);
 
+    void ShowComponent(const ComponentDescriptor& descriptor) const;
 private:
     SceneHolder* m_sceneHolder;
     

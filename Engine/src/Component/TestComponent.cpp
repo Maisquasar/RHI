@@ -1,11 +1,27 @@
 ﻿#include "TestComponent.h"
 
 #include "TransformComponent.h"
+#include "Debug/Log.h"
 #include "Scene/GameObject.h"
+
+void TestComponent::Describe(ComponentDescriptor& d)
+{
+    d.AddFloat("Speed", m_speed);
+}
+
+void TestComponent::OnCreate()
+{
+    m_transform = GetGameObject()->GetComponent<TransformComponent>();
+}
+
 void TestComponent::OnUpdate(float deltaTime)
 {
-    auto transform = GetGameObject()->GetComponent<TransformComponent>();
+    if (!m_transform)
+    {
+        PrintError("TestComponent::OnUpdate: m_transform is null");
+        return;
+    }
     
-    auto rotation = transform->GetLocalRotation();
-    transform->SetLocalRotation(rotation * Quat::AngleAxis(deltaTime * 60.f, Vec3f::Up()));
+    Quat rotation = m_transform->GetLocalRotation();
+    m_transform->SetLocalRotation(rotation * Quat::AngleAxis(deltaTime * m_speed, Vec3f::Up()));
 }

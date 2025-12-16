@@ -1,18 +1,25 @@
 ﻿#pragma once
+#include <galaxymath/Maths.h>
+
 #include "Core/UUID.h"
+#include "Scene/ComponentDescriptor.h"
 
-class RHIRenderer;
-class GameObject;
-
-#define DECLARE_COMPONENT_TYPE(T) \
+#define DECLARE_COMPONENT_TYPE_PARENT(T, P) \
     T() = default; \
-    T(GameObject* gameObject) : IComponent(gameObject) {} \
+    T(GameObject* gameObject) : P(gameObject) {} \
     T& operator=(const T& other) = default;\
     T(const T&) = default;\
     T(T&&) noexcept = default;\
     virtual ~T() override = default;\
-    std::string GetTypeName() const override { return #T; } 
+    const char* GetTypeName() const override { return #T; } \
+    using Super = P;
+
+
+#define DECLARE_COMPONENT_TYPE(T) DECLARE_COMPONENT_TYPE_PARENT(T, IComponent)
     
+
+class RHIRenderer;
+class GameObject;
 
 class IComponent
 {
@@ -24,17 +31,22 @@ public:
     IComponent(IComponent&&) noexcept = default;
     virtual ~IComponent() = default;
     
-    virtual std::string GetTypeName() const { return "IComponent"; }
-    
+    virtual const char* GetTypeName() const { return "IComponent"; }
+    virtual void Describe(ComponentDescriptor& d) {}
+
     virtual void OnCreate() {}
     virtual void OnStart() {}
     virtual void OnUpdate(float deltaTime) {}
     virtual void OnRender(RHIRenderer* renderer) {}
     virtual void OnDestroy() {}
     
+    bool IsEnable() const { return p_enable; }
+    void SetEnable(bool enable) { p_enable = enable; }
+    
     Core::UUID GetUUID() const { return p_uuid; }
     GameObject* GetGameObject() const { return p_gameObject; }
 protected:
+    bool p_enable = true;
     Core::UUID p_uuid;
     GameObject* p_gameObject = nullptr;
 };

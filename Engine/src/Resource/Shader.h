@@ -100,17 +100,11 @@ using PushConstants = std::unordered_map<ShaderType, PushConstant>;
 class Shader : public IResource
 {
 public:
-    Shader(std::filesystem::path path) : IResource(std::move(path)) {}
-    Shader(const Shader&) = delete;
-    Shader(Shader&&) = delete;
-    Shader& operator=(const Shader&) = delete;
-    virtual ~Shader() override = default;
+    DECLARE_RESOURCE_TYPE(Shader)
     
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
-    
-    ResourceType GetResourceType() const override { return ResourceType::Shader; }
 
     PushConstants GetPushConstants() const {return m_pushConstants;}
     Uniform GetUniform(const std::string& name) { return m_uniforms[name]; }

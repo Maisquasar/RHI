@@ -16,10 +16,13 @@ class TransformComponent : public IComponent
 public:
     DECLARE_COMPONENT_TYPE(TransformComponent)
     
+    void Describe(ComponentDescriptor& d) override;
+
     void OnUpdate(float deltaTime) override;
-    
-    const Mat4& GetModelMatrix() const { return m_modelMatrix; }
-    
+
+    Mat4 GetWorldMatrix() const;
+    Mat4 GetLocalMatrix() const;
+
     Vec3f GetForward() const;
     Vec3f GetRight() const;
     Vec3f GetUp() const;
@@ -46,12 +49,16 @@ public:
     void RotateAround(const Vec3f point, const Vec3f axis, const float angle);
     void RotateAround(const Vec3f axis, const float angle);
     Vec3f TransformDirection(Vec3f dir) const;
+    
 public:
     Event<> EOnUpdateModelMatrix;
 private:
     void SetDirty() { m_dirty = true; }
-
+    
+    void UpdateMatrix();
+    void ComputeModelMatrix(const Mat4& parentMatrix);
     void ComputeModelMatrix();
+    void UpdateModelMatrix(const Mat4& matrix);
 private:
     Mat4 m_modelMatrix;
     

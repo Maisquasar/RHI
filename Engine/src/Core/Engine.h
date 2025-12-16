@@ -31,6 +31,7 @@ public:
     Window* GetWindow() const { return m_window; }
     RHIRenderer* GetRenderer() const { return m_renderer.get(); }
     SceneHolder* GetSceneHolder() const { return m_sceneHolder.get(); }
+    ResourceManager* GetResourceManager() const { return m_resourceManager.get(); }
 private:
     Window* m_window;
     std::unique_ptr<RHIRenderer> m_renderer;

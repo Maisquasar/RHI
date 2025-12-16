@@ -13,6 +13,29 @@ Hierarchy::Hierarchy(Engine* engine): EditorWindow(engine)
     m_sceneHolder = engine->GetSceneHolder();
 }
 
+void Hierarchy::DisplayObject(GameObject* object)
+{
+    if (!object)
+        return;
+    
+    ImGui::PushID(object->GetUUID());
+    bool open = ImGui::TreeNode(object->GetName().c_str());
+    if (ImGui::IsItemHovered() && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    {
+        EOnObjectSelected.Invoke(object->GetUUID());
+    }
+    if (open)
+    {
+        for (auto& child : object->GetChildren())
+        {
+            DisplayObject(child.get().get());
+        }
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
+
 void Hierarchy::OnRender()
 {
     Scene* scene = m_sceneHolder->GetCurrentScene();
@@ -20,23 +43,7 @@ void Hierarchy::OnRender()
     
     if (ImGui::Begin("Hierarchy"))
     {
-        for (const auto& [uuid, gameObject] : gameObjects)
-        {
-            ImGui::PushID(uuid);
-            
-            std::string name = gameObject->GetName();
-            if (ImGui::Selectable(name.c_str(), m_selectedObject == uuid))
-            {
-                EOnObjectSelected.Invoke(uuid);
-                m_selectedObject = uuid;
-            }
-            
-            ImGui::PopID();
-        }
-        if (ImGui::Button("Create Empty"))
-        {
-            scene->CreateGameObject();
-        }
+        DisplayObject(scene->GetRootObject().get().get());
     }
     ImGui::End();
 }

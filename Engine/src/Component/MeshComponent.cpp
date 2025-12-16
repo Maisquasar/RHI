@@ -9,6 +9,12 @@
 #include "TransformComponent.h"
 #include "Utils/Color.h"
 
+void MeshComponent::Describe(ComponentDescriptor& d)
+{
+    d.AddProperty("Mesh", PropertyType::Mesh, &m_mesh);
+    d.AddProperty("Materials", PropertyType::Materials, &m_materials);
+}
+
 void MeshComponent::OnUpdate(float deltaTime)
 {
     static float time;
@@ -33,7 +39,7 @@ void MeshComponent::OnRender(RHIRenderer* renderer)
         return;
 
     auto transformComponent = p_gameObject->GetComponent<TransformComponent>();
-    auto model = transformComponent->GetModelMatrix();
+    auto model = transformComponent->GetWorldMatrix();
     for (auto& material : m_materials)
     {
         auto shader = material->GetShader().get().get();

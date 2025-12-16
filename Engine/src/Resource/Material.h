@@ -55,13 +55,11 @@ struct MaterialAttributes
 class Material : public IResource
 {
 public:
-    using IResource::IResource;
+    DECLARE_RESOURCE_TYPE(Material)
     
     bool Load(ResourceManager* resourceManager) override;
     bool SendToGPU(RHIRenderer* renderer) override;
     void Unload() override;
-    
-    ResourceType GetResourceType() const override { return ResourceType::Material; }
     
     void SetShader(const SafePtr<Shader>& shader);
     SafePtr<Shader> GetShader() const { return m_shader; }
@@ -78,6 +76,7 @@ public:
     
     void Bind(RHIRenderer* renderer) const;
 
+    MaterialAttributes GetAttributes() const { return m_attributes; }
 private:
     void OnShaderChanged();
 private:

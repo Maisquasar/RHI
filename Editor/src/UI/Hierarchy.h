@@ -1,6 +1,7 @@
 #pragma once
 #include "EditorWindow.h"
 #include "Core/UUID.h"
+#include "Scene/GameObject.h"
 #include "Utils/Event.h"
 
 class SceneHolder;
@@ -13,6 +14,8 @@ public:
     void OnRender() override;
     
     Event<Core::UUID> EOnObjectSelected;
+private:
+    void DisplayObject(GameObject* object);
 private:
     SceneHolder* m_sceneHolder;
     

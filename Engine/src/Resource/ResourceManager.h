@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <memory>
+#include <ranges>
 #include <unordered_map>
 
 #include "Core/ThreadPool.h"
@@ -34,6 +35,9 @@ public:
 
     template<typename T>
     std::shared_ptr<T> GetResource(const Core::UUID& uuid) const;
+    
+    template<typename T>
+    std::vector<std::shared_ptr<T>> GetAll() const;
     
     bool Contains(const Core::UUID& uuid) const;
 
@@ -105,6 +109,7 @@ std::shared_ptr<T> ResourceManager::GetResource(const std::filesystem::path& res
 
     return GetResource<T>(uuid);
 }
+
 template<typename T>
 std::shared_ptr<T> ResourceManager::GetResource(const Core::UUID& uuid) const
 {
@@ -115,6 +120,22 @@ std::shared_ptr<T> ResourceManager::GetResource(const Core::UUID& uuid) const
     }
     return std::dynamic_pointer_cast<T>(it->second);;
 }
+
+template <typename T>
+std::vector<std::shared_ptr<T>> ResourceManager::GetAll() const
+{
+    std::vector<std::shared_ptr<T>> resources;
+    auto type = T::GetStaticResourceType();
+    for (auto& resource : m_resources | std::views::values)
+    {
+        if (resource->GetResourceType() == type)
+        {
+            resources.push_back(std::dynamic_pointer_cast<T>(resource));
+        }
+    }
+    return resources;
+}
+
 template<typename T>
 SafePtr<T> ResourceManager::AddResource(const std::shared_ptr<T>& resource)
 {
