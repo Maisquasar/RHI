@@ -3,9 +3,7 @@
 
 void TransformComponent::Describe(ComponentDescriptor& d)
 {
-    d.AddVec3f("Position", m_localPosition);
-    d.AddQuat("Rotation", m_localRotation);
-    d.AddVec3f("Scale", m_localScale);
+    d.AddProperty("", PropertyType::Transform, this);
 }
 
 void TransformComponent::OnUpdate(float deltaTime)

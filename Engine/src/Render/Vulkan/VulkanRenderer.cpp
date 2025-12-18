@@ -778,7 +778,8 @@ bool VulkanRenderer::BindMaterial(Material* material)
     auto commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
     pipeline->Bind(commandBuffer);
 
-    material->Bind(this);
+    if (!material->Bind(this))
+        return false;
 
     // Set viewport and scissor dynamically
     VkViewport viewport{};

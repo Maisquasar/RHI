@@ -3,26 +3,43 @@
 #include <functional>
 #include <vector>
 #include <mutex>
+#pragma once
+#include "EngineAPI.h"
+#include <functional>
+#include <vector>
+#include <mutex>
+#include <cstdint>
+#include <algorithm>
+
+using EventHandle = uint64_t;
 
 template<typename... Args>
 class ENGINE_API Event {
 public:
+    using Callback = std::function<void(Args...)>;
+
     Event() = default;
     Event(const Event&) = delete;
     Event& operator=(const Event&) = delete;
     Event(Event&&) = default;
     Event& operator=(Event&&) = default;
-    virtual ~Event() = default; 
+    virtual ~Event() = default;
 
-    using Callback = std::function<void(Args...)>;
-
-    virtual void Bind(Callback callback)
+    virtual EventHandle Bind(Callback callback)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_callbacks.push_back(std::move(callback));
+        EventHandle id = ++m_nextId;
+        m_callbacks.push_back({ id, std::move(callback) });
+        return id;
     }
 
-    virtual void ClearBindings()
+    virtual void Unbind(EventHandle id)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::erase_if(m_callbacks, [id](const Entry& e) { return e.id == id; });
+    }
+
+    void ClearBindings()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_callbacks.clear();
@@ -30,21 +47,14 @@ public:
 
     virtual void Invoke(Args... args)
     {
-        std::vector<Callback> callbacksCopy;
+        std::vector<Entry> copy;
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            callbacksCopy = m_callbacks; // copy under lock
+            copy = m_callbacks;
         }
 
-        for (auto& callback : callbacksCopy)
-        {
-            callback(args...);
-        }
-    }
-
-    void operator+=(Callback callback)
-    {
-        Bind(std::move(callback));
+        for (auto& e : copy)
+            e.callback(args...);
     }
 
     void operator()(Args... args)
@@ -52,39 +62,37 @@ public:
         Invoke(args...);
     }
 
+    void operator+=(Callback callback)
+    {
+        Bind(callback);    
+    }
+    
 protected:
-    std::vector<Callback> m_callbacks;
+    struct Entry {
+        EventHandle id;
+        Callback callback;
+    };
+
+    std::vector<Entry> m_callbacks;
+    EventHandle m_nextId = 0;
     mutable std::mutex m_mutex;
 };
 
-// Event that runs only once
+// Event that run only once (when bind, call the method if already call)
 class ENGINE_API OnceEvent : public Event<> {
 public:
-    using Event::Event; 
     using Callback = std::function<void()>;
 
-    void Invoke() override
+    EventHandle Bind(Callback callback) override
     {
-        std::vector<Callback> callbacksCopy;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (m_called) return;
-            callbacksCopy = m_callbacks;
-            m_called = true;
-            m_callbacks.clear();
-        }
-
-        for (auto& callback : callbacksCopy)
-            callback();
-    }
-
-    void Bind(Callback callback) override
-    {        
         bool callNow = false;
+        EventHandle id = 0;
+
         {
             std::lock_guard<std::mutex> lock(m_mutex);
             if (!m_called) {
-                m_callbacks.push_back(std::move(callback));
+                id = ++m_nextId;
+                m_callbacks.push_back({ id, std::move(callback) });
             } else {
                 callNow = true;
             }
@@ -92,6 +100,31 @@ public:
 
         if (callNow)
             callback();
+
+        return id;
+    }
+
+    void Unbind(EventHandle id) override
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        std::erase_if(m_callbacks, [id](const Entry& e) { return e.id == id; });
+    }
+
+    void Invoke() override
+    {
+        std::vector<Entry> copy;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_called)
+                return;
+
+            m_called = true;
+            copy = m_callbacks;
+            m_callbacks.clear();
+        }
+
+        for (auto& e : copy)
+            e.callback();
     }
 
     void Reset()
@@ -102,5 +135,4 @@ public:
 
 private:
     bool m_called = false;
-    mutable std::mutex m_mutex;
 };

@@ -20,7 +20,8 @@ enum class PropertyType
     Color3,
     Color4,
     Mesh,
-    Materials
+    Materials,
+    Transform
 };
 
 struct Property

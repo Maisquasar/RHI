@@ -73,8 +73,8 @@ public:
     void SetAttribute(const std::string& name, const Mat4& attribute);
 
     void SendAllValues(RHIRenderer* renderer) const;
-    
-    void Bind(RHIRenderer* renderer) const;
+
+    bool Bind(RHIRenderer* renderer) const;
 
     MaterialAttributes GetAttributes() const { return m_attributes; }
 private:
@@ -85,4 +85,6 @@ private:
     
     MaterialAttributes m_attributes;
     MaterialAttributes m_temporaryAttributes;
+
+    EventHandle m_shaderChangeEvent;
 };

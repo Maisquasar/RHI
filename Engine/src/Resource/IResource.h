@@ -87,13 +87,13 @@ public:
     
     void SetLoaded()
     {
-        OnLoaded.Invoke();
         p_isLoaded = true;
+        OnLoaded.Invoke();
     }
     void SetSentToGPU()
     {
-        OnSentToGPU.Invoke();
         p_sendToGPU = true;
+        OnSentToGPU.Invoke();
     }
     
 public:

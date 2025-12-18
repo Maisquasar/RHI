@@ -25,7 +25,7 @@ void Inspector::OnRender()
             ImGui::End();
             return;
         }
-        
+
         Scene* scene = m_sceneHolder->GetCurrentScene();
 
         if (SafePtr<GameObject> object = scene->GetGameObject(m_selectedObject))
@@ -45,8 +45,10 @@ void Inspector::OnRender()
                 ImGui::SameLine();
 
                 bool destroy = true;
-                const bool open = ImGui::CollapsingHeader(component->GetTypeName(), &destroy, ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
-                
+                const bool open = ImGui::CollapsingHeader(component->GetTypeName(), &destroy,
+                                                          ImGuiTreeNodeFlags_AllowOverlap |
+                                                          ImGuiTreeNodeFlags_DefaultOpen);
+
                 if (open)
                 {
                     ComponentDescriptor descriptor;
@@ -65,12 +67,90 @@ void Inspector::SetSelectedObject(Core::UUID uuid)
     m_selectedObject = uuid;
 }
 
+void Inspector::ShowMaterials(const Property& property) const
+{
+    auto materials = static_cast<std::vector<SafePtr<Material>>*>(property.data);
+    auto materialList = *materials;
+    for (SafePtr<Material>& material : materialList)
+    {
+        ImGui::PushID(material->GetUUID());
+        auto meshName = material->GetName();
+        if (ImGui::Button(meshName.c_str()))
+        {
+            ImGui::OpenPopup("Material Popup");
+        }
+        if (ImGui::BeginPopup("Material Popup"))
+        {
+            auto resourceManager = p_engine->GetResourceManager();
+            auto allMaterials = resourceManager->GetAll<Material>();
+            for (auto& mat : allMaterials)
+            {
+                ImGui::PushID(mat->GetUUID());
+                if (ImGui::MenuItem(mat->GetName().c_str()))
+                {
+                    material = mat;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndPopup();
+        }
+        ImGui::PopID();
+    }
+    *materials = materialList;
+}
+
+void Inspector::ShowMesh(const Property& property) const
+{
+    SafePtr<Mesh>* meshPtr = static_cast<SafePtr<Mesh>*>(property.data);
+    SafePtr<Mesh> mesh = *meshPtr;
+    auto meshName = mesh->GetName();
+    if (ImGui::Button(meshName.c_str()))
+    {
+        ImGui::OpenPopup("Mesh Popup");
+    }
+    if (ImGui::BeginPopup("Mesh Popup"))
+    {
+        auto resourceManager = p_engine->GetResourceManager();
+        auto meshes = resourceManager->GetAll<Mesh>();
+        for (auto& mesh : meshes)
+        {
+            ImGui::PushID(mesh->GetUUID());
+            if (ImGui::MenuItem(mesh->GetName().c_str()))
+            {
+                *meshPtr = mesh;
+            }
+            ImGui::PopID();
+        }
+        ImGui::EndPopup();
+    }
+}
+
+void Inspector::ShowTransform(const Property& property) const
+{
+    auto transform = static_cast<TransformComponent*>(property.data);
+    Vec3f position = transform->GetLocalPosition();
+    Vec3f eulerRotation = transform->GetLocalRotation().ToEuler();
+    Vec3f scale = transform->GetLocalScale();
+    if (ImGui::DragFloat3("Position", &position.x, 0.1f))
+    {
+        transform->SetLocalPosition(position);
+    }
+    if (ImGui::DragFloat3("Rotation", &eulerRotation.x, 0.1f))
+    {
+        transform->SetLocalRotation(eulerRotation.ToQuaternion());
+    }
+    if (ImGui::DragFloat3("Scale", &scale.x, 0.1f))
+    {
+        transform->SetLocalScale(scale);
+    }
+}
+
 void Inspector::ShowComponent(const ComponentDescriptor& descriptor) const
 {
-    //TODO: Setter for transform case
     for (auto& property : descriptor.properties)
     {
-        switch (property.type) {
+        switch (property.type)
+        {
         case PropertyType::None:
             ImGui::Text("None");
             break;
@@ -105,65 +185,15 @@ void Inspector::ShowComponent(const ComponentDescriptor& descriptor) const
         case PropertyType::Color4:
             ImGui::ColorEdit4(property.name.c_str(), &static_cast<Vec4f*>(property.data)->x);
             break;
-        
         case PropertyType::Mesh:
-            {
-                SafePtr<Mesh>* meshPtr = static_cast<SafePtr<Mesh>*>(property.data);
-                SafePtr<Mesh> mesh = *meshPtr;
-                auto meshName = mesh->GetName();
-                if (ImGui::Button(meshName.c_str()))
-                {
-                    ImGui::OpenPopup("Mesh Popup");
-                }
-                if (ImGui::BeginPopup("Mesh Popup"))
-                {
-                    auto resourceManager = p_engine->GetResourceManager();
-                    auto meshes = resourceManager->GetAll<Mesh>();
-                    for (auto& mesh : meshes)
-                    {
-                        ImGui::PushID(mesh->GetUUID());
-                        if (ImGui::MenuItem(mesh->GetName().c_str()))
-                        {
-                            *meshPtr = mesh;
-                        }
-                        ImGui::PopID();
-                    }
-                    ImGui::EndPopup();
-                }
-            }
+            ShowMesh(property);
             break;
         case PropertyType::Materials:
-            {
-                auto materials = static_cast<std::vector<SafePtr<Material>>*>(property.data);
-                auto materialList = *materials;
-                for (SafePtr<Material>& material : materialList)
-                {
-                    ImGui::PushID(material->GetUUID());
-                    auto meshName = material->GetName();
-                    if (ImGui::Button(meshName.c_str()))
-                    {
-                        ImGui::OpenPopup("Material Popup");
-                    }
-                    if (ImGui::BeginPopup("Material Popup"))
-                    {
-                        auto resourceManager = p_engine->GetResourceManager();
-                        auto allMaterials = resourceManager->GetAll<Material>();
-                        for (auto& mat : allMaterials)
-                        {
-                            ImGui::PushID(mat->GetUUID());
-                            if (ImGui::MenuItem(mat->GetName().c_str()))
-                            {
-                                material = mat;
-                            }
-                            ImGui::PopID();
-                        }
-                        ImGui::EndPopup();
-                    }
-                    ImGui::PopID();
-                }
-                *materials = materialList;
-                break;
-            }
+            ShowMaterials(property);
+            break;
+        case PropertyType::Transform:
+            ShowTransform(property);
+            break;
         }
     }
 }

@@ -26,9 +26,13 @@ void Material::Unload()
 
 void Material::SetShader(const SafePtr<Shader>& shader)
 {
+    if (m_shader && m_shader->GetUUID() != shader->GetUUID())
+    {
+        m_shader->OnSentToGPU.Unbind(m_shaderChangeEvent);
+    }
+    
     m_shader = shader;
-
-    m_shader->OnSentToGPU.Bind([this] { OnShaderChanged(); });
+    m_shaderChangeEvent = m_shader->OnSentToGPU.Bind([this] { OnShaderChanged(); });
 }
 
 void Material::SetAttribute(const std::string& name, float attribute)
@@ -170,12 +174,22 @@ void Material::SendAllValues(RHIRenderer* renderer) const
             renderer);
     }
 }
-void Material::Bind(RHIRenderer* renderer) const
+
+bool Material::Bind(RHIRenderer* renderer) const
 {
+    if (!m_handle)
+        return false;
     m_handle->Bind(renderer);
+    return true;
 }
+
 void Material::OnShaderChanged()
 {
+    if (!m_shader || !m_shader->SentToGPU())
+    {
+        PrintWarning("Invalid shader, probably change");
+        return;
+    }
     m_attributes.Clear();
     Uniforms uniforms = m_shader->GetUniforms();
 

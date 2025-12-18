@@ -184,7 +184,7 @@ SafePtr<T> ResourceManager::Load(const std::filesystem::path& resourcePath, bool
         ThreadPool::Enqueue([this, uuid]()
         {
             auto resource = GetResource<T>(uuid);
-            if (!resource || resource->IsLoaded())
+            if (!resource)
             {
                 PrintError("Resource is invalid");
                 return;

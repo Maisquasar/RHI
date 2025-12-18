@@ -48,7 +48,7 @@ bool Engine::Initialize(EngineDesc desc)
     m_resourceManager = std::make_unique<ResourceManager>();
     m_resourceManager->Initialize(m_renderer.get());
     m_resourceManager->LoadDefaultTexture(RESOURCE_PATH"/textures/debug.jpeg");
-    m_resourceManager->LoadDefaultShader(RESOURCE_PATH"/shaders/unlit.shader");
+    m_resourceManager->LoadDefaultShader(RESOURCE_PATH"/shaders/Unlit/unlit.shader");
     m_resourceManager->LoadDefaultMaterial(RESOURCE_PATH"/shaders/unlit.material");
     
     m_componentRegister = std::make_unique<ComponentRegister>();
@@ -82,23 +82,21 @@ void Engine::Update()
     static bool init = false;
     if (!init)
     {        
-
         SafePtr cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Cube.obj");
         cubeModel = m_resourceManager->Load<Model>(RESOURCE_PATH"/models/Suzanne.obj");
-        cubeModel->OnLoaded.Bind([cubeModel, this]()
+        SafePtr shader = m_resourceManager->Load<Shader>(RESOURCE_PATH"/shaders/Normal/normal.shader");
+        cubeModel->OnLoaded.Bind([cubeModel, this, shader]()
         {
             SafePtr cubeMesh = m_resourceManager->GetResource<Mesh>(cubeModel->GetMeshes()[0]->GetPath());
     
-            size_t count = std::pow(1, 3);
+            size_t count = std::pow(3, 3);
             float sqrtCount = std::pow(count, 1 / 3.f);
-            
+
+            auto mat = m_resourceManager->CreateMaterial(RESOURCE_PATH"/shaders/normal.material");
+            mat->SetShader(shader);
             for (int i = 0; i < count; i++)
             {
-                auto mat = m_resourceManager->CreateMaterial("Material_" + std::to_string(i));
-
                 float hue = i * 360 / count;
-            
-                mat->SetAttribute("color", static_cast<Vec4f>(Color::FromHSV(hue, 1.f, 1.f)));
             
                 SafePtr<GameObject> object = m_sceneHolder->GetCurrentScene()->CreateGameObject();
             
