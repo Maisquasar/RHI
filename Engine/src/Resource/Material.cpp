@@ -285,8 +285,10 @@ void Material::OnShaderChanged()
                 {
                     m_attributes.samplerAttributes[uniform.name] =
                        m_temporaryAttributes.samplerAttributes.contains(uniform.name) ? m_temporaryAttributes.samplerAttributes[uniform.name].value : SafePtr<Texture>{};
-                    
-                    auto texture = m_attributes.samplerAttributes[uniform.name].value.getPtr();
+
+                    Texture* texture = m_attributes.samplerAttributes[uniform.name].value.getPtr();
+                    if (!texture)
+                        break;
                     texture->EOnSentToGPU.Bind([this, uniform, texture]()
                     {
                         auto renderer = Engine::Get()->GetRenderer();

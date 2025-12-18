@@ -103,6 +103,7 @@ SafePtr<GameObject> Model::CreateGameObject(Model* model, Scene* scene)
     for (size_t i = 0; i < model->m_meshes.size(); i++)
     {
         SafePtr<GameObject> child = scene->CreateGameObject(go.getPtr());
+        child->SetName(model->m_meshes[i]->GetName());
         SafePtr<MeshComponent> meshComp = child->AddComponent<MeshComponent>();
         auto subMeshes = model->m_meshes[i]->GetSubMeshes();
         for (size_t j = 0; j < subMeshes.size(); j++)
