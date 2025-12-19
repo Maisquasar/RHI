@@ -14,19 +14,16 @@ Scene::Scene()
     root->SetName("Root");
     m_rootUUID = root->GetUUID();
 
-    m_cameraData.transform = std::make_unique<TransformComponent>();
-    m_cameraData.transform->SetLocalPosition(Vec3f::Zero());
+    m_editorCamera = std::make_unique<Camera>();
+    m_editorCamera->GetTransform()->SetLocalPosition(Vec3f::Zero());
 
-    m_cameraData.transform->EOnUpdateModelMatrix += [this]()
+    m_editorCamera->GetTransform()->EOnUpdateModelMatrix += [this]()
     {
         float aspect = Engine::Get()->GetWindow()->GetAspectRatio();
-        Mat4 view = Mat4::LookAtRH(m_cameraData.transform->GetLocalPosition(),
-                                   m_cameraData.transform->GetLocalPosition() + m_cameraData.transform->GetForward(), 
-                                   m_cameraData.transform->GetUp());
-        Mat4 projection = Mat4::CreateProjectionMatrix(45.f, aspect, 0.01f, 1000.0f); 
-        projection[1][1] *= -1;
+        
+        m_editorCamera->SetAspectRatio(aspect);
 
-        m_cameraData.VP = projection * view;
+        m_editorCameraData.VP = m_editorCamera->GetViewProjectionMatrix();
     };
 }
 
@@ -211,7 +208,7 @@ void Scene::UpdateCamera(float deltaTime) const
 {
     static Vec2f startClickPos;
     static Vec2f prevMousePos = Vec2f::Zero();
-    auto transform = m_cameraData.transform.get();
+    auto transform = m_editorCamera->GetTransform();
     transform->OnUpdate(deltaTime);
     
     auto position = transform->GetLocalPosition();
@@ -281,11 +278,11 @@ void Scene::UpdateCamera(float deltaTime) const
 
     prevMousePos = mousePos;
 
-    if (m_cameraData.transform->GetUp().y < 0)
+    if (transform->GetUp().y < 0)
     {
         mouseX *= -1;
     }
 
-    m_cameraData.transform->Rotate(Vec3f::Up(), -mouseX, Space::World);
-    m_cameraData.transform->Rotate(Vec3f::Right(), -mouseY, Space::Local);
+    transform->Rotate(Vec3f::Up(), -mouseX, Space::World);
+    transform->Rotate(Vec3f::Right(), -mouseY, Space::Local);
 }

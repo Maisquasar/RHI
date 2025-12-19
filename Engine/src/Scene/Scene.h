@@ -6,7 +6,9 @@
 
 #include <galaxymath/Maths.h>
 
+#include "Render/Camera.h"
 #include "ComponentHandler.h"
+
 #include "Utils/Type.h"
 
 class TransformComponent;
@@ -15,9 +17,7 @@ class IComponent;
 class GameObject;
 
 struct CameraData
-{
-    std::unique_ptr<TransformComponent> transform;
-    
+{    
     Mat4 VP;
 };
 
@@ -63,8 +63,7 @@ public:
     
     void RemoveAllComponents(GameObject* gameObject);
 #pragma endregion 
-
-    const CameraData& GetCameraData() const { return m_cameraData; }
+    CameraData GetCameraData() const { return m_editorCameraData; }
     
 private:
     void UpdateCamera(float deltaTime) const;
@@ -75,9 +74,9 @@ private:
     GameObjectList m_gameObjects;
     std::unordered_map<ComponentID, std::vector<std::shared_ptr<IComponent>>> m_components;
     
-    CameraData m_cameraData;
+    std::unique_ptr<Camera> m_editorCamera;
+    CameraData m_editorCameraData;
     
-    // Use recursive_mutex to allow same thread to lock multiple times
     mutable std::recursive_mutex m_gameObjectsMutex;
     mutable std::recursive_mutex m_componentsMutex;
 };

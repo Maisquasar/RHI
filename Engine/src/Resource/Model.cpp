@@ -52,8 +52,11 @@ bool Model::Load(ResourceManager* resourceManager)
             }
         }
         
+        std::vector<std::vector<Vec3f>> positions;
+        positions.reserve(model.meshes.size());
         for (auto& mesh : model.meshes)
         {
+            positions.push_back(mesh.positions);
             SafePtr<Mesh> meshResource = resourceManager->AddResource(std::make_shared<Mesh>(p_path / mesh.name));
             
             meshResource->m_subMeshes.reserve(mesh.subMeshes.size());
@@ -76,6 +79,8 @@ bool Model::Load(ResourceManager* resourceManager)
             meshResource->SetLoaded();
             resourceManager->AddResourceToSend(meshResource.getPtr());
         }
+        
+        ComputeBoundingBox(positions);
         return true;
     }
     else
@@ -109,7 +114,7 @@ SafePtr<GameObject> Model::CreateGameObject(Model* model, Scene* scene)
         auto subMeshes = model->m_meshes[i]->GetSubMeshes();
         for (size_t j = 0; j < subMeshes.size(); j++)
         {
-            if (j >= model->m_materials.size())
+            if (materialIndex >= model->m_materials.size())
             {
                 meshComp->AddMaterial(resourceManager->GetDefaultMaterial());
                 continue;
@@ -119,4 +124,25 @@ SafePtr<GameObject> Model::CreateGameObject(Model* model, Scene* scene)
         meshComp->SetMesh(model->m_meshes[i]);
     }
     return go;
+}
+
+void Model::ComputeBoundingBox(const std::vector<std::vector<Vec3f>>& positionVertices)
+{
+    if (positionVertices.empty())
+        return;
+    for (size_t i = 0; SafePtr<Mesh>& mesh : m_meshes)
+    {
+        if (!mesh)
+            continue;
+        mesh->ComputeBoundingBox(positionVertices[i]);
+
+        m_boundingBox.min.x = std::min(m_boundingBox.min.x, mesh->m_boundingBox.min.x);
+        m_boundingBox.min.y = std::min(m_boundingBox.min.y, mesh->m_boundingBox.min.y);
+        m_boundingBox.min.z = std::min(m_boundingBox.min.z, mesh->m_boundingBox.min.z);
+
+        m_boundingBox.max.x = std::max(m_boundingBox.max.x, mesh->m_boundingBox.max.x);
+        m_boundingBox.max.y = std::max(m_boundingBox.max.y, mesh->m_boundingBox.max.y);
+        m_boundingBox.max.z = std::max(m_boundingBox.max.z, mesh->m_boundingBox.max.z);
+        i++;
+    }
 }

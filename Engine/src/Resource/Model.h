@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "IResource.h"
+#include "Physic/BoundingBox.h"
 #include "Utils/Type.h"
 
 class Material;
@@ -23,7 +24,11 @@ public:
     static SafePtr<GameObject> CreateGameObject(Model* model, Scene* scene);
 
 private:
+    void ComputeBoundingBox(const std::vector<std::vector<Vec3f>>& positionVertices);
+private:
     std::vector<SafePtr<Mesh>> m_meshes;
     
     std::vector<SafePtr<Material>> m_materials = {};
+    
+    BoundingBox m_boundingBox;
 };
