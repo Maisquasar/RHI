@@ -231,43 +231,12 @@ void VulkanRenderer::WaitUntilFrameFinished()
 
 void VulkanRenderer::Update()
 {
-    /*static auto lastTime = std::chrono::high_resolution_clock::now();
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-    lastTime = currentTime;
-
-    static float time = 0.0f;
-    time += deltaTime;
-
-    // float fps = 1.0f / deltaTime;
-    // PrintLog("FPS:   %f", fps);
-
-    UniformBufferObject ubo;
-    Vec3f camPos = Vec3f(2.0f, 2.0f, 2.0f);
-    Vec3f camTarget = Vec3f(0.0f, 0.0f, 0.0f);
-    Vec3f camUp = Vec3f(0.0f, 1.0f, 0.0f);
-
-    float distanceInFront = 5.f;
-    Vec3f forward = Vec3f::Normalize(camTarget - camPos);
-    Vec3f cubePosition = camPos + forward * distanceInFront;
-
-    float angle = time * 90.0f;
-    ubo.Model = Mat4::CreateTransformMatrix(cubePosition, Vec3f(0.f, angle, 0.f), Vec3f(1.f, 1.f, 1.f));
-
-    Quat camRotation = Quat::LookRotation(camTarget - camPos, camUp);
-
-    Mat4 out = Mat4::CreateTransformMatrix(camPos, camRotation, Vec3f(1, 1, 1));
-    ubo.View = Mat4::LookAtRH(camPos, camTarget, camUp);
-
-    ubo.Projection = Mat4::CreateProjectionMatrix(
-        45.f, m_swapChain->GetExtent().width / (float)m_swapChain->GetExtent().height, 0.1f, 10.0f);
-    ubo.Projection[1][1] *= -1; // GLM -> Vulkan Y flip
-
-    m_uniformBuffer->WriteToMapped(&ubo, sizeof(ubo), m_currentFrame);*/
+    
 }
 
 bool VulkanRenderer::BeginFrame()
 {
+    p_triangleCount = 0;
     m_imageIndex = 0;
     VkResult result = m_swapChain->AcquireNextImage(
         m_syncObjects->GetImageAvailableSemaphore(m_currentFrame),
@@ -402,6 +371,7 @@ void VulkanRenderer::DrawVertexSubMesh(RHIIndexBuffer* _indexBuffer, uint32_t st
     VkCommandBuffer commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
     
     vkCmdDrawIndexed(commandBuffer, indexCount, 1, startIndex, 0, 0);
+    p_triangleCount += indexCount / 3;
 }
 
 std::string VulkanRenderer::CompileShader(ShaderType type, const std::string& code)

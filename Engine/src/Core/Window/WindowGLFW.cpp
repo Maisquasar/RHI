@@ -246,12 +246,12 @@ void WindowGLFW::SetTransparent(bool enabled)
 
 void WindowGLFW::SetVSync(bool enabled)
 {
+    m_vsync = enabled;
     if (p_renderAPI == RenderAPI::Vulkan)
     {
-        PrintWarning("VSync is not supported for Vulkan");
+        // PrintWarning("VSync is not supported for Vulkan");
         return;
     }
-    m_vsync = enabled;
     glfwSwapInterval(enabled ? 1 : 0);
 }
 

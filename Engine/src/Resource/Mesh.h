@@ -45,6 +45,8 @@ public:
     RHIIndexBuffer* GetIndexBuffer() const { return m_indexBuffer.get(); }
     
     const std::vector<SubMesh>& GetSubMeshes() const { return m_subMeshes; }
+    
+    const BoundingBox& GetBoundingBox() const { return m_boundingBox; }
 private:
     void ComputeBoundingBox(const std::vector<Vec3f>& positionVertices);
 private:

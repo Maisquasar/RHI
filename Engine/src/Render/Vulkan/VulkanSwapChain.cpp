@@ -185,7 +185,7 @@ void VulkanSwapChain::CreateSwapChain(Window* window)
         m_device->GetPhysicalDevice(), m_surface);
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-    VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
+    VkPresentModeKHR presentMode = window->GetVSync() ? ChooseSwapPresentMode(swapChainSupport.presentModes) : VK_PRESENT_MODE_IMMEDIATE_KHR;
     VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities, window);
 
     // Request one more than minimum to avoid waiting

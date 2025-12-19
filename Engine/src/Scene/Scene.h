@@ -19,6 +19,7 @@ class GameObject;
 struct CameraData
 {    
     Mat4 VP;
+    Frustum frustum;
 };
 
 using GameObjectList = std::unordered_map<Core::UUID, std::shared_ptr<GameObject>>;

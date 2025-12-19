@@ -2,6 +2,8 @@
 #include <cfloat>
 #include <galaxymath/Maths.h>
 
+#include "Frustum.h"
+
 class Camera;
 class TransformComponent;
 struct Plane;
@@ -19,6 +21,6 @@ struct BoundingBox
     Vec3f GetCenter() const;
     Vec3f GetExtents() const;
 
-    bool IsOnFrustum(Camera* camera, const TransformComponent* objectTransform) const;
+    bool IsOnFrustum(const Frustum& frustum, const TransformComponent* objectTransform) const;
     bool isOnOrForwardPlane(const Plane& plane) const;
 };

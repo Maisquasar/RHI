@@ -22,7 +22,10 @@ Scene::Scene()
         float aspect = Engine::Get()->GetWindow()->GetAspectRatio();
         
         m_editorCamera->SetAspectRatio(aspect);
+        
+        m_editorCamera->UpdateFrustum();
 
+        m_editorCameraData.frustum = m_editorCamera->GetFrustum();
         m_editorCameraData.VP = m_editorCamera->GetViewProjectionMatrix();
     };
 }

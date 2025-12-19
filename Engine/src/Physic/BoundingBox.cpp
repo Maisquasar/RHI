@@ -22,10 +22,8 @@ Vec3f BoundingBox::GetExtents() const
     return max - GetCenter();
 }
 
-bool BoundingBox::IsOnFrustum(Camera* camera, const TransformComponent* objectTransform) const
+bool BoundingBox::IsOnFrustum(const Frustum& frustum, const TransformComponent* objectTransform) const
 {
-    Frustum frustum = camera->GetFrustum();
-
     Vec3f position = objectTransform->GetWorldPosition();
     Quat rotation = objectTransform->GetWorldRotation();
     Vec3f scale = objectTransform->GetWorldScale();

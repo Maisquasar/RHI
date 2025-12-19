@@ -7,6 +7,7 @@ void ResourcesWindow::OnRender()
     if (ImGui::Begin("Resources"))
     {
         ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+        ImGui::Text("Triangle Count: %llu", p_engine->GetRenderer()->GetTriangleCount());
         for (const auto& pair : p_engine->GetResourceManager()->GetResources())
         {
             ImGui::PushID(pair.first);

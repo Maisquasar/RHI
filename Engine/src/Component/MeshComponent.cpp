@@ -16,14 +16,16 @@ void MeshComponent::Describe(ClassDescriptor& d)
 }
 
 void MeshComponent::OnUpdate(float deltaTime)
-{
-    static float time;
-    time += deltaTime;
-    time = std::fmod(time, 360.f);
-    
-    RHIRenderer* renderer = Engine::Get()->GetRenderer();
+{    
+    if (!m_mesh)
+        return;
 
-    Mat4 VP = p_gameObject->GetScene()->GetCameraData().VP;
+    CameraData cameraData = p_gameObject->GetScene()->GetCameraData();
+    auto transform = p_gameObject->GetTransform();
+    m_visible = m_mesh->GetBoundingBox().IsOnFrustum(cameraData.frustum, transform.getPtr());
+    if (!m_visible)
+        return;
+    Mat4 VP = cameraData.VP;
 
     for (auto& material : m_materials)
     {
@@ -33,6 +35,8 @@ void MeshComponent::OnUpdate(float deltaTime)
 
 void MeshComponent::OnRender(RHIRenderer* renderer) 
 {
+    if (!m_visible)
+        return;
 #ifdef RENDER_QUEUE
     auto queue = renderer->GetRenderQueueManager()->GetOpaqueQueue();
     queue->SubmitMeshRenderer(GetGameObject(), this->m_mesh.getPtr(), m_materials);

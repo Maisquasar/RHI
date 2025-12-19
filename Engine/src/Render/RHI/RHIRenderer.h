@@ -86,9 +86,12 @@ public:
     virtual void SetDefaultTexture(const SafePtr<Texture>& texture) = 0;
     
     RenderQueueManager* GetRenderQueueManager() const { return m_renderQueue.get(); }
+    
+    uint64_t GetTriangleCount() const { return p_triangleCount; }
 protected:
     RenderAPI p_renderAPI;
     bool p_initialized = false;
     std::unique_ptr<RenderQueueManager> m_renderQueue;
+    uint64_t p_triangleCount = 0;
     
 };
