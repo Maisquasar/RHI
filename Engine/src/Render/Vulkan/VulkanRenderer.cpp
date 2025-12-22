@@ -48,6 +48,7 @@
 
 
 #include "Core/Window/WindowGLFW.h"
+#include "Resource/ComputeShader.h"
 
 VulkanRenderer::~VulkanRenderer() = default;
 
@@ -385,6 +386,9 @@ std::string VulkanRenderer::CompileShader(ShaderType type, const std::string& co
     case ShaderType::Fragment:
         kind = shaderc_fragment_shader;
         break;
+    case ShaderType::Compute:
+        kind = shaderc_compute_shader;
+        break;
     default:
         PrintError("Invalid shader type");
         return "";    
@@ -584,7 +588,21 @@ static Uniforms SpirvReflectUniforms(const std::string& spirv)
             case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
                 u.type = UniformType::Sampler2D;
                 break;
+            case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                if (u.name.empty() && binding->type_description) {
+                    u.name = binding->type_description->type_name ? binding->type_description->type_name : u.name;
+                }
+                u.type = UniformType::StorageBuffer;
 
+                if (binding->block.member_count > 0 && binding->block.members) {
+                    u.members.reserve(binding->block.member_count);
+                    for (uint32_t m = 0; m < binding->block.member_count; ++m) {
+                        UniformMember mem;
+                        ParseBlockVariable(&binding->block.members[m], mem);
+                        u.members.push_back(std::move(mem));
+                    }
+                }
+                break;
             default:
                 u.type = UniformType::Unknown;
                 break;
@@ -669,24 +687,43 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 {
     VertexShader* vertex = shader->GetVertexShader();
     FragmentShader* frag = shader->GetFragmentShader();
+    ComputeShader* comp = shader->GetComputeShader();
     
     Uniforms uniforms;
 
     Uniforms result = {};
-    result = SpirvReflectUniforms(vertex->GetContent());
-    uniforms.reserve(result.size());
-    for (auto& uniform : result | std::views::values)
+    
+    if (vertex)
     {
-        uniform.shaderType = ShaderType::Vertex;
-        uniforms[uniform.name] = uniform;
+        result = SpirvReflectUniforms(vertex->GetContent());
+        uniforms.reserve(result.size());
+        for (auto& uniform : result | std::views::values)
+        {
+            uniform.shaderType = ShaderType::Vertex;
+            uniforms[uniform.name] = uniform;
+        }
     }
     
-    result = SpirvReflectUniforms(frag->GetContent());
-    uniforms.reserve(uniforms.size() + result.size());
-    for (auto& uniform : result | std::views::values)
+    if (frag)
     {
-        uniform.shaderType = ShaderType::Fragment;
-        uniforms[uniform.name] = uniform;
+        result = SpirvReflectUniforms(frag->GetContent());
+        uniforms.reserve(uniforms.size() + result.size());
+        for (auto& uniform : result | std::views::values)
+        {
+            uniform.shaderType = ShaderType::Fragment;
+            uniforms[uniform.name] = uniform;
+        }
+    }
+    
+    if (comp)
+    {
+        result = SpirvReflectUniforms(comp->GetContent());
+        uniforms.reserve(uniforms.size() + result.size());
+        for (auto& uniform : result | std::views::values)
+        {
+            uniform.shaderType = ShaderType::Compute;
+            uniforms[uniform.name] = uniform;
+        }
     }
     
     return uniforms;
@@ -696,20 +733,38 @@ PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
 {
     VertexShader* vertex = shader->GetVertexShader();
     FragmentShader* frag = shader->GetFragmentShader();
+    ComputeShader* comp = shader->GetComputeShader(); 
     
     PushConstants pushConstants;
-    std::optional<PushConstant> pushConstant = SpirvReflectPushConstants(vertex->GetContent());
-    if (pushConstant.has_value())
+    std::optional<PushConstant> pushConstant;
+    if (vertex)
     {
-        pushConstant.value().shaderType = ShaderType::Vertex;
-        pushConstants[ShaderType::Vertex] = pushConstant.value();
+        pushConstant = SpirvReflectPushConstants(vertex->GetContent());
+        if (pushConstant.has_value())
+        {
+            pushConstant.value().shaderType = ShaderType::Vertex;
+            pushConstants[ShaderType::Vertex] = pushConstant.value();
+        }
     }
     
-    pushConstant = SpirvReflectPushConstants(frag->GetContent());
-    if (pushConstant.has_value())
+    if (frag)
     {
-        pushConstant.value().shaderType = ShaderType::Fragment;
-        pushConstants[ShaderType::Fragment] = pushConstant.value();
+        pushConstant = SpirvReflectPushConstants(frag->GetContent());
+        if (pushConstant.has_value())
+        {
+            pushConstant.value().shaderType = ShaderType::Fragment;
+            pushConstants[ShaderType::Fragment] = pushConstant.value();
+        }
+    }
+    
+    if (comp)
+    {
+        pushConstant = SpirvReflectPushConstants(comp->GetContent());
+        if (pushConstant.has_value())
+        {
+            pushConstant.value().shaderType = ShaderType::Compute;
+            pushConstants[ShaderType::Compute] = pushConstant.value();
+        }
     }
     return pushConstants;
 }

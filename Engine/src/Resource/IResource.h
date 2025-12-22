@@ -18,7 +18,7 @@ enum class ResourceType
     Model,
     FragmentShader,
     VertexShader,
-    // ComputeShader,
+    ComputeShader,
     Shader,
     Material
 };
@@ -33,6 +33,7 @@ inline const char* to_string(ResourceType e)
         case ResourceType::Model: return "Model";
         case ResourceType::FragmentShader: return "FragmentShader";
         case ResourceType::VertexShader: return "VertexShader";
+        case ResourceType::ComputeShader: return "ComputeShader";
         case ResourceType::Shader: return "Shader";
         case ResourceType::Material: return "Material";
         default: return "unknown";

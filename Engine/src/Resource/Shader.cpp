@@ -1,8 +1,9 @@
 #include "Shader.h"
 
-#include "FragmentShader.h"
-#include "ResourceManager.h"
 #include "VertexShader.h"
+#include "FragmentShader.h"
+#include "ComputeShader.h"
+#include "ResourceManager.h"
 #include "Debug/Log.h"
 #include "Utils/File.h"
 
@@ -88,46 +89,73 @@ std::filesystem::path BaseShader::GetCompiledPath() const
 bool Shader::Load(ResourceManager* resourceManager)
 {
     File file(p_path);
-    std::vector<std::string> shaders;
-    if (!file.ReadAllLines(shaders))
+    std::vector<std::string> stagePaths;
+
+    if (!file.ReadAllLines(stagePaths) || stagePaths.empty())
     {
-        PrintError("Failed to read shader source from file: %s", p_path.c_str());
+        PrintError("Failed to read shader source or file is empty: %s", p_path.c_str());
         return false;
     }
 
-    std::string vertexShaderPath = shaders[0];
-    std::string fragmentShaderPath = shaders[1];
-    if (!File::Exist(vertexShaderPath))
-    {
-        vertexShaderPath = (p_path.parent_path() / vertexShaderPath).generic_string();
-    }
-    if (!File::Exist(fragmentShaderPath))
-    {
-        fragmentShaderPath = (p_path.parent_path() / fragmentShaderPath).generic_string();
-    }
+    auto ResolvePath = [&](const std::string& subPath) -> std::string {
+        if (subPath.empty()) return "";
+        if (File::Exist(subPath)) return subPath;
+        return (p_path.parent_path() / subPath).generic_string();
+    };
+
+    // Index mapping: 0 = Vert, 1 = Frag, 2 = Compute
     
-    m_vertexShader = resourceManager->Load<VertexShader>(vertexShaderPath);
-    if (!m_vertexShader)
+    // 1. Vertex Shader
+    if (stagePaths.size() > 0 && !stagePaths[0].empty())
     {
-        PrintError("Failed to load vertex shader: %s", vertexShaderPath.c_str());
+        std::string path = ResolvePath(stagePaths[0]);
+        m_vertexShader = resourceManager->Load<VertexShader>(path);
+        if (!m_vertexShader) {
+            PrintError("Failed to load Vertex Shader: %s", path.c_str());
+            return false;
+        }
+    }
+
+    // 2. Fragment Shader
+    if (stagePaths.size() > 1 && !stagePaths[1].empty())
+    {
+        std::string path = ResolvePath(stagePaths[1]);
+        m_fragmentShader = resourceManager->Load<FragmentShader>(path);
+        if (!m_fragmentShader) {
+            PrintError("Failed to load Fragment Shader: %s", path.c_str());
+            return false;
+        }
+    }
+
+    // 3. Compute Shader
+    if (stagePaths.size() > 2 && !stagePaths[2].empty())
+    {
+        std::string path = ResolvePath(stagePaths[2]);
+        m_computeShader = resourceManager->Load<ComputeShader>(path);
+        if (!m_computeShader) {
+            PrintError("Failed to load Compute Shader: %s", path.c_str());
+            return false;
+        }
+    }
+
+    bool hasGraphics = (m_vertexShader && m_fragmentShader);
+    bool hasCompute = (m_computeShader.valid());
+
+    if (!hasGraphics && !hasCompute)
+    {
+        PrintError("Shader %s is invalid: Must have (Vert + Frag) or (Compute)", p_path.c_str());
         return false;
     }
-    m_vertexShader->EOnSentToGPU.Bind([this](){OnShaderSent();});
     
-    m_fragmentShader = resourceManager->Load<FragmentShader>(fragmentShaderPath);
-    if (!m_fragmentShader)
-    {
-        PrintError("Failed to load fragment shader: %s", fragmentShaderPath.c_str());
-        return false;
-    }
-    m_fragmentShader->EOnSentToGPU.Bind([this](){OnShaderSent();});
-    
+    m_graphic = hasGraphics;
+
     return true;
 }
 
 bool Shader::SendToGPU(RHIRenderer* renderer)
 {
-    if (!m_vertexShader->SentToGPU() || !m_fragmentShader->SentToGPU())
+    if (m_graphic && (!m_vertexShader->SentToGPU() || !m_fragmentShader->SentToGPU()) 
+        || !m_graphic && (!m_computeShader->SentToGPU()))
     {
         return false;
     }
@@ -151,9 +179,4 @@ void Shader::SendTexture(UBOBinding binding, Texture* texture, RHIRenderer* rend
 void Shader::SendValue(UBOBinding binding, void* value, uint32_t size, RHIRenderer* renderer)
 {
     renderer->SendValue(binding, value, size, this);
-}
-
-void Shader::OnShaderSent()
-{
-
 }

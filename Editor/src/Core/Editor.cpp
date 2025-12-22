@@ -4,6 +4,7 @@
 #include "Component/TestComponent.h"
 #include "Component/TransformComponent.h"
 #include "Core/Engine.h"
+#include "Resource/ComputeShader.h"
 
 #include "Resource/Mesh.h"
 #include "Resource/Model.h"
@@ -46,11 +47,13 @@ void Editor::Initialize()
     
     auto resourceManager = m_engine->GetResourceManager();
     auto currentScene = m_engine->GetSceneHolder()->GetCurrentScene();
-    auto model = resourceManager->Load<Model>(RESOURCE_PATH"/models/Sponza/sponza.obj");
+    auto model = resourceManager->Load<Model>(RESOURCE_PATH"/models/Cube.obj");
     model->EOnLoaded.Bind([model, this, currentScene]()
     {
         auto go = Model::CreateGameObject(model.getPtr(), currentScene);
     });
+    
+    auto computeShader = resourceManager->Load<Shader>(RESOURCE_PATH"/shaders/Compute/multiply.shader");
 }
 
 void Editor::Run()
