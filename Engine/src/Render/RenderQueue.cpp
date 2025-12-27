@@ -63,6 +63,13 @@ void RenderQueue::SubmitMeshRenderer(GameObject* gameObject, Mesh* mesh,
     }
 }
 
+void RenderQueue::SubmitInstancing(Mesh* mesh, Material* material, size_t instanceCount)
+{
+    RenderCommand cmd;
+    cmd.mesh = mesh;
+    
+}
+
 void RenderQueue::Sort()
 {
     if (m_type == QueueType::Transparent)
@@ -118,84 +125,6 @@ void RenderQueue::Execute(RHIRenderer* renderer)
         renderer->DrawVertexSubMesh(cmd.mesh->GetIndexBuffer(), 
                                     cmd.startIndex, 
                                     cmd.indexCount);
-    }
-}
-
-std::vector<RenderBatch> RenderQueue::CreateBatches()
-{
-    std::vector<RenderBatch> batches;
-        
-    if (m_commands.empty())
-        return batches;
-        
-    Sort();
-        
-    RenderBatch currentBatch;
-    currentBatch.material = m_commands[0].material;
-    currentBatch.shader = m_commands[0].shader;
-    currentBatch.mesh = m_commands[0].mesh;
-        
-    for (const auto& cmd : m_commands)
-    {
-        if (cmd.material == currentBatch.material &&
-            cmd.shader == currentBatch.shader &&
-            cmd.mesh == currentBatch.mesh)
-        {
-            RenderBatch::Instance instance;
-            instance.modelMatrix = cmd.modelMatrix;
-            instance.startIndex = cmd.startIndex;
-            instance.indexCount = cmd.indexCount;
-            instance.subMeshIndex = cmd.subMeshIndex;
-            currentBatch.instances.push_back(instance);
-        }
-        else
-        {
-            batches.push_back(currentBatch);
-                
-            currentBatch = RenderBatch();
-            currentBatch.material = cmd.material;
-            currentBatch.shader = cmd.shader;
-            currentBatch.mesh = cmd.mesh;
-                
-            RenderBatch::Instance instance;
-            instance.modelMatrix = cmd.modelMatrix;
-            instance.startIndex = cmd.startIndex;
-            instance.indexCount = cmd.indexCount;
-            instance.subMeshIndex = cmd.subMeshIndex;
-            currentBatch.instances.push_back(instance);
-        }
-    }
-    
-    if (!currentBatch.instances.empty())
-        batches.push_back(currentBatch);
-        
-    return batches;
-}
-
-void RenderQueue::ExecuteBatched(RHIRenderer* renderer)
-{
-    auto batches = CreateBatches();
-        
-    for (auto& batch : batches)
-    {
-        if (!renderer->BindMaterial(batch.material))
-            continue;
-            
-        renderer->BindVertexBuffers(batch.mesh->GetVertexBuffer(), 
-                                    batch.mesh->GetIndexBuffer());
-        
-        for (auto& instance : batch.instances)
-        {
-            PushConstant pushConstant = batch.shader->GetPushConstants()[ShaderType::Vertex];
-            renderer->SendPushConstants(&instance.modelMatrix, 
-                                        sizeof(Mat4), 
-                                        batch.shader, 
-                                        pushConstant);
-                
-            renderer->DrawVertexSubMesh(batch.mesh->GetIndexBuffer(), 
-                                        instance.startIndex, 
-                                        instance.indexCount);
-        }
     }
 }
 

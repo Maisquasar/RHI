@@ -7,6 +7,6 @@ public:
     RHIBuffer& operator=(const RHIBuffer& other) = default;
     RHIBuffer(const RHIBuffer&) = default;
     RHIBuffer(RHIBuffer&&) noexcept = default;
-    ~RHIBuffer() = default;
+    virtual ~RHIBuffer() = default;
     
 };

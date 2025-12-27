@@ -5,7 +5,6 @@
 #include "Core/Engine.h"
 #include "Render/Vulkan/VulkanIndexBuffer.h"
 #include "Render/Vulkan/VulkanRenderer.h"
-#include "Render/Vulkan/VulkanVertexBuffer.h"
 #include "Scene/GameObject.h"
 #include "Utils/Color.h"
 #include "Utils/Random.h"
@@ -107,36 +106,21 @@ void ParticleSystemComponent::OnUpdate(float deltaTime)
 
 void ParticleSystemComponent::OnRender(RHIRenderer* renderer)
 {
-    auto vulkanRenderer = Cast<VulkanRenderer>(renderer);
-    VkCommandBuffer commandBuffer = vulkanRenderer->GetCommandBuffer();
-    uint32_t frameIndex = vulkanRenderer->GetFrameIndex();
-
-    if (!vulkanRenderer->BindShader(m_material->GetShader().getPtr()))
+    if (!renderer->BindShader(m_material->GetShader().getPtr()))
         return;
 
     m_material->SendAllValues(renderer);
-    if (!vulkanRenderer->BindMaterial(m_material.getPtr()))
+    if (!renderer->BindMaterial(m_material.getPtr()))
         return;
 
-    auto vertex = Cast<VulkanVertexBuffer>(m_mesh->GetVertexBuffer());
-    auto index = Cast<VulkanIndexBuffer>(m_mesh->GetIndexBuffer());
-
-    VkBuffer vertexBuffers[] = {vertex->GetBuffer(), m_instanceBuffer->GetBuffer()};
-    VkDeviceSize offsets[] = {0, 0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(commandBuffer, index->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-    vkCmdDrawIndexed(commandBuffer, index->GetIndexCount(), static_cast<uint32_t>(m_particleCount), 0, 0, 0);
+    renderer->DrawInstanced(m_mesh->GetIndexBuffer(), m_mesh->GetVertexBuffer(), m_instanceBuffer.get(), m_particleCount);
 }
 
 void ParticleSystemComponent::OnDestroy()
 {
-    auto vulkanRenderer = Cast<VulkanRenderer>(Engine::Get()->GetRenderer());
-    if (vulkanRenderer)
-        vkDeviceWaitIdle(vulkanRenderer->GetDevice()->GetDevice());
+    RHIRenderer* renderer = Engine::Get()->GetRenderer();
+    renderer->WaitForGPU();
     
-    // Clean up any pending buffers
     for (auto& buffer : m_buffersToCleanup)
     {
         if (buffer)
@@ -165,7 +149,6 @@ void ParticleSystemComponent::SetParticleCount(int count)
         auto device = vulkanRenderer->GetDevice();
         VkDeviceSize size = sizeof(InstanceData) * static_cast<VkDeviceSize>(m_particleCount);
         
-        // Move old buffers to cleanup list instead of destroying immediately
         if (m_instanceStaging || m_instanceBuffer)
         {
             if (m_instanceStaging)

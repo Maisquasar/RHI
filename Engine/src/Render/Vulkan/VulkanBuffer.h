@@ -4,13 +4,15 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 
+#include "Render/RHI/RHIBuffer.h"
+
 class VulkanDevice;
 
-class VulkanBuffer
+class VulkanBuffer : public RHIBuffer
 {
 public:
     VulkanBuffer() = default;
-    ~VulkanBuffer();
+    ~VulkanBuffer() override;
 
     bool Initialize(VulkanDevice* device, VkDeviceSize size, 
                    VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);

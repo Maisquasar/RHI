@@ -34,23 +34,6 @@ struct RenderCommand
     void GenerateSortKeyWithDepth(float depth);
 };
 
-struct RenderBatch
-{
-    Material* material;
-    Shader* shader;
-    Mesh* mesh;
-    
-    struct Instance
-    {
-        Mat4 modelMatrix;
-        uint32_t startIndex;
-        uint32_t indexCount;
-        size_t subMeshIndex;
-    };
-    
-    std::vector<Instance> instances;
-};
-
 class RenderQueue
 {
 public:
@@ -66,14 +49,11 @@ public:
     void Submit(const RenderCommand& command);
 
     void SubmitMeshRenderer(GameObject* gameObject, Mesh* mesh, const std::vector<SafePtr<Material>>& materials);
+    void SubmitInstancing(Mesh* mesh, Material* material, size_t instanceCount);
 
     void Sort();
 
     void Execute(RHIRenderer* renderer);
-
-    std::vector<RenderBatch> CreateBatches();
-
-    void ExecuteBatched(RHIRenderer* renderer);
 
     void Clear();
 

@@ -44,6 +44,7 @@ public:
     SafePtr<GameObject> GetParent() const;
     
     std::vector<SafePtr<GameObject>> GetChildren() const;
+    std::set<Core::UUID> GetChildrenUUID() const { return m_childrenUUID; }
     
     Scene* GetScene() const { return &m_scene; }
 private:

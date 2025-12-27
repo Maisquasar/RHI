@@ -378,6 +378,21 @@ void VulkanRenderer::DrawVertexSubMesh(RHIIndexBuffer* _indexBuffer, uint32_t st
     p_triangleCount += indexCount / 3;
 }
 
+void VulkanRenderer::DrawInstanced(RHIIndexBuffer* indexBuffer, RHIVertexBuffer* vertexShader, RHIBuffer* instanceBuffer, uint32_t instanceCount)
+{
+    VkCommandBuffer commandBuffer = m_commandPool->GetCommandBuffer(m_currentFrame);
+    VulkanIndexBuffer* index = static_cast<VulkanIndexBuffer*>(indexBuffer);
+    
+    VkBuffer vertexBuffers[] = {Cast<VulkanVertexBuffer>(vertexShader)->GetBuffer(), Cast<VulkanBuffer>(instanceBuffer)->GetBuffer()};
+    VkDeviceSize offsets[] = {0, 0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, index->GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(commandBuffer, index->GetIndexCount(), static_cast<uint32_t>(instanceCount), 0, 0, 0);
+    p_triangleCount += (index->GetIndexCount() / 3) * instanceCount;
+}
+
 std::string VulkanRenderer::CompileShader(ShaderType type, const std::string& code)
 {
     shaderc_shader_kind kind;

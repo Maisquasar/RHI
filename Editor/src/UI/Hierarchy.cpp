@@ -14,25 +14,117 @@ Hierarchy::Hierarchy(Engine* engine, ImGuiHandler* handler): EditorWindow(engine
     m_sceneHolder = engine->GetSceneHolder();
 }
 
-void Hierarchy::DisplayObject(GameObject* object)
+static std::unordered_map<Core::UUID, bool> openMap;
+static std::unordered_map<Core::UUID, bool> selectedMap;
+void Hierarchy::DisplayObject(GameObject* object, uint64_t& index, bool display)
 {
-    if (!object)
-        return;
-    
-    ImGui::PushID(object->GetUUID());
-    bool open = ImGui::TreeNode(object->GetName().c_str());
-    if (ImGui::IsItemHovered() && ImGui::IsItemClicked(ImGuiMouseButton_Left))
+    auto children = object->GetChildren();
+    if (!display)
     {
+        // Do the same for all children
+        for (auto&& child : children)
+        {
+            if (!child)
+                continue;
+            ImGui::TreePush(child->GetName().c_str());
+            index++;
+            DisplayObject(child.getPtr(), index, display);
+            ImGui::TreePop();
+        }
+        return;
+    }
+    ImGui::PushID(static_cast<int>(index));
+    // Display arrow button
+    if (!object->GetChildrenUUID().empty())
+    {
+        auto& open = openMap[object->GetUUID()];
+        if (!open)
+        {
+            if (ImGui::ArrowButton("##right", ImGuiDir_Right))
+            {
+                open = true;
+            }
+        }
+        else if (open)
+        {
+            if (ImGui::ArrowButton("##down", ImGuiDir_Down))
+            {
+                open = false;
+            }
+        }
+        ImGui::SameLine(0, 10);
+    }
+    else
+    {
+        ImGui::Button("O", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight()  ));
+        ImGui::SameLine();
+    }
+
+    // Rename Field
+    bool& selected = selectedMap[object->GetUUID()];
+    if (m_renameObject == object->GetUUID())
+    {
+        auto renameObject = object->GetScene()->GetGameObject(m_renameObject);
+        static std::string name;
+        name = renameObject->GetName();
+        if (m_openRename)
+        {
+            ImGui::SetKeyboardFocusHere();
+        }
+        ImGui::InputText("##InputText", &name);
+        if (m_renameObject && !m_openRename && !ImGui::IsItemActive())
+        {
+            renameObject->SetName(name);
+            m_renameObject = UUID_INVALID;
+        }
+        m_openRename = false;
+    }
+    // Selectable Field
+    else if (ImGui::Selectable(object->GetName().c_str(), &selected, ImGuiSelectableFlags_SelectOnNav))
+    {
+        for (auto& sel : selectedMap)
+        {
+            if (sel.first == object->GetUUID())
+                continue;
+            sel.second = false;
+        }
         EOnObjectSelected.Invoke(object->GetUUID());
     }
-    if (open)
+    
+    if (display)
+        display = openMap[object->GetUUID()];
+    const auto drawList = ImGui::GetWindowDrawList();
+    const float centerX = std::floor(ImGui::GetFrameHeight() * 0.5f);
+    const ImVec2 verticalLine = ImGui::GetCursorScreenPos() + ImVec2(centerX, -4);
+    ImVec2 lastChildPos;
+    constexpr ImU32 white = IM_COL32_WHITE;
+    // Do the same for all children
+    for (size_t i = 0; i < children.size(); i++)
     {
-        for (auto& child : object->GetChildren())
-        {
-            DisplayObject(child.getPtr());
-        }
+        auto child = children[i];
+        if (!child)
+            continue;
+        ImVec2 cursorPos = ImGui::GetCursorScreenPos() + ImVec2(centerX + 1, centerX);
+        if (i == children.size() - 1)
+            lastChildPos = ImGui::GetCursorScreenPos();
+        
+        // Draw horizontal line
+        if (display)
+            drawList->AddLine(cursorPos, cursorPos + ImVec2(centerX, 0), white);
+        
+        ImGui::TreePush(children[i]->GetName().c_str());
+        
+        index++;
+        DisplayObject(child.getPtr(), index, display);
+        
         ImGui::TreePop();
+    }        
+    
+    if (!children.empty() && openMap[object->GetUUID()])
+    {
+        drawList->AddLine(verticalLine, lastChildPos + ImVec2(centerX, centerX + 1), white);
     }
+    
     ImGui::PopID();
 }
 
@@ -44,7 +136,8 @@ void Hierarchy::OnRender()
     
     if (ImGui::Begin("Hierarchy"))
     {
-        DisplayObject(scene->GetRootObject().getPtr());
+        uint64_t index = 0;
+        DisplayObject(scene->GetRootObject().getPtr(), index);
     }
     ImGui::End();
 }

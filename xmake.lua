@@ -77,7 +77,7 @@ add_requires("galaxymath")
 add_requires("thread-pool")
 
 -- Define macros
-add_defines("NOMINMAX")
+add_defines("NOMINMAX", "IMGUI_IMPLEMENTATION")
 
 if has_config("glfw") then
     add_packages("glfw")
@@ -174,6 +174,8 @@ target("Editor")
     set_kind("binary")
     
     add_deps("Engine")
+    
+    add_defines("IMGUI_DEFINE_MATH_OPERATORS")
     
     add_files("Editor/src/**.cpp")
     add_headerfiles("Editor/src/**.h", "Editor/src/**.hpp")

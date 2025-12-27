@@ -15,10 +15,14 @@ public:
     void OnRender() override;
     
     Event<Core::UUID> EOnObjectSelected;
+
 private:
-    void DisplayObject(GameObject* object);
+    void DisplayObject(GameObject* object, uint64_t& index, bool display = true);
 private:
     SceneHolder* m_sceneHolder;
     
     Core::UUID m_selectedObject = UUID_INVALID;
+    
+    Core::UUID m_renameObject = UUID_INVALID;
+    bool m_openRename;
 };
