@@ -104,6 +104,7 @@ void Engine::WaitBeforeClean()
 
 void Engine::Cleanup()
 {    
+    m_sceneHolder.reset();
     m_resourceManager->CreateCache();
     m_resourceManager->Clear();
     m_renderer->Cleanup();

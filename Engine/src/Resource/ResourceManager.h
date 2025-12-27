@@ -183,6 +183,10 @@ SafePtr<T> ResourceManager::Load(const std::filesystem::path& resourcePath, bool
             resource->p_uuid = uuid;
             AddResource(resource);
         }
+        else if (resource->IsLoaded())
+        {
+            return resource;
+        }
     }
 
     if (multiThread)

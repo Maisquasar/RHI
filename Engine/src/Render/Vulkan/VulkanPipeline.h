@@ -22,10 +22,10 @@ public:
     VulkanPipeline() = default;
     ~VulkanPipeline();
 
-    bool InitializeGraphicsPipeline(const VertexShader* vertexShader, const FragmentShader* fragmentShader, VkRenderPass renderPass);
     bool Initialize(VulkanDevice* device, VkRenderPass renderPass, VkExtent2D extent,
                     uint32_t maxFramesInFlight, const Shader* shader);
     
+    bool InitializeGraphicsPipeline(const VertexShader* vertexShader, const FragmentShader* fragmentShader, VkRenderPass renderPass);
     bool InitializeComputePipeline(const ComputeShader* computeShader);
 
     void Cleanup();

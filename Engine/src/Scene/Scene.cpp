@@ -30,7 +30,11 @@ Scene::Scene()
     };
 }
 
-Scene::~Scene() = default;
+Scene::~Scene()
+{
+    GameObject* root = GetRootObject().getPtr();
+    DestroyGameObject(root);
+}
 
 void Scene::OnRender(RHIRenderer* renderer)
 {
@@ -158,6 +162,12 @@ void Scene::DestroyGameObject(GameObject* gameObject)
     auto it = m_gameObjects.find(gameObject->GetUUID());
     if (it == m_gameObjects.end())
         return;
+    
+    for (auto& childUUID : gameObject->m_childrenUUID)
+    {
+        GameObject* object = GetGameObject(childUUID).getPtr();
+        DestroyGameObject(object);
+    }
 
     RemoveAllComponents(gameObject);
 

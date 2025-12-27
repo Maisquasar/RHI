@@ -2,6 +2,10 @@
 
 #include "Debug/Log.h"
 #include "Render/RHI/RHIRenderer.h"
+#include "Render/Vulkan/VulkanBuffer.h"
+#include "Render/Vulkan/VulkanRenderer.h"
+
+class VulkanRenderer;
 
 RHIBindingDescription Vertex::GetBindingDescription()
 {
@@ -64,7 +68,7 @@ bool Mesh::SendToGPU(RHIRenderer* renderer)
         return false;
     }
     
-    std::vector<uint32_t> sequentialIndices(m_vertices.size() / 11); // 11 floats per vertex
+    std::vector<uint32_t> sequentialIndices(m_vertices.size() / floatsPerVertex);
     for (uint32_t i = 0; i < sequentialIndices.size(); i++) {
         sequentialIndices[i] = i;
     }

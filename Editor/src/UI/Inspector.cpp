@@ -126,7 +126,10 @@ void Inspector::ShowMesh(const Property& property) const
             ImGui::PushID(mesh->GetUUID());
             if (ImGui::MenuItem(mesh->GetName().c_str()))
             {
-                *meshPtr = mesh;
+                if (property.setter)
+                    property.setter(&mesh);
+                else
+                    *meshPtr = mesh;
             }
             ImGui::PopID();
         }
@@ -153,7 +156,6 @@ void Inspector::ShowTransform(const Property& property) const
         transform->SetLocalScale(scale);
     }
 }
-
 void Inspector::ShowProperty(const ClassDescriptor& descriptor) const
 {
     for (auto& property : descriptor.properties)
@@ -164,50 +166,126 @@ void Inspector::ShowProperty(const ClassDescriptor& descriptor) const
             ImGui::Text("None");
             break;
         case PropertyType::Bool:
-            ImGui::Checkbox(property.name.c_str(), static_cast<bool*>(property.data));
+        {
+            bool local = *static_cast<bool*>(property.data);
+            if (ImGui::Checkbox(property.name.c_str(), &local))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<bool*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Int:
-            ImGui::InputInt(property.name.c_str(), static_cast<int*>(property.data));
+        {
+            int local = *static_cast<int*>(property.data);
+            if (ImGui::InputInt(property.name.c_str(), &local))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<int*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Float:
-            ImGui::DragFloat(property.name.c_str(), static_cast<float*>(property.data));
+        {
+            float local = *static_cast<float*>(property.data);
+            if (ImGui::DragFloat(property.name.c_str(), &local))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<float*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Vec2f:
-            ImGui::DragFloat2(property.name.c_str(), &static_cast<Vec2f*>(property.data)->x);
+        {
+            Vec2f local = *static_cast<Vec2f*>(property.data);
+            if (ImGui::DragFloat2(property.name.c_str(), &local.x))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<Vec2f*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Vec3f:
-            ImGui::DragFloat3(property.name.c_str(), &static_cast<Vec3f*>(property.data)->x);
+        {
+            Vec3f local = *static_cast<Vec3f*>(property.data);
+            if (ImGui::DragFloat3(property.name.c_str(), &local.x))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<Vec3f*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Vec4f:
-            ImGui::DragFloat4(property.name.c_str(), &static_cast<Vec4f*>(property.data)->x);
+        {
+            Vec4f local = *static_cast<Vec4f*>(property.data);
+            if (ImGui::DragFloat4(property.name.c_str(), &local.x))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<Vec4f*>(property.data) = local;
+            }
             break;
+        }
         case PropertyType::Quat:
+        {
+            auto quat = static_cast<Quat*>(property.data);
+            Quat localQuat = *quat;
+            Vec3f euler = localQuat.ToEuler();
+            if (ImGui::DragFloat3(property.name.c_str(), &euler.x))
             {
-                auto quat = static_cast<Quat*>(property.data);
-                auto euler = quat->ToEuler();
-                if (ImGui::DragFloat3(property.name.c_str(), &euler.x))
-                {
-                    *quat = Quat::FromEuler(euler);
-                }
-                break;
+                localQuat = Quat::FromEuler(euler);
+                if (property.setter)
+                    property.setter(static_cast<void*>(&localQuat));
+                else
+                    *quat = localQuat;
             }
+            break;
+        }
         case PropertyType::Color3:
-            ImGui::ColorEdit3(property.name.c_str(), &static_cast<Vec3f*>(property.data)->x);
-            break;
-        case PropertyType::Color4:
-            ImGui::ColorEdit4(property.name.c_str(), &static_cast<Vec4f*>(property.data)->x);
-            break;
-        case PropertyType::Texture:
+        {
+            Vec3f local = *static_cast<Vec3f*>(property.data);
+            if (ImGui::ColorEdit3(property.name.c_str(), &local.x))
             {
-                auto texturePtr = static_cast<SafePtr<Texture>*>(property.data);
-                auto textureID = m_imguiHandler->GetTextureID(texturePtr->getPtr());
-                ImGui::Image(textureID, ImVec2(64, 64));
-                break;
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<Vec3f*>(property.data) = local;
             }
+            break;
+        }
+        case PropertyType::Color4:
+        {
+            Vec4f local = *static_cast<Vec4f*>(property.data);
+            if (ImGui::ColorEdit4(property.name.c_str(), &local.x))
+            {
+                if (property.setter)
+                    property.setter(static_cast<void*>(&local));
+                else
+                    *static_cast<Vec4f*>(property.data) = local;
+            }
+            break;
+        }
+        case PropertyType::Texture:
+        {
+            auto texturePtr = static_cast<SafePtr<Texture>*>(property.data);
+            auto textureID = m_imguiHandler->GetTextureID(texturePtr->getPtr());
+            ImGui::Image(textureID, ImVec2(64, 64));
+            break;
+        }
         case PropertyType::Mesh:
             ShowMesh(property);
             break;
-        // case PropertyType::Material:
         case PropertyType::Materials:
             ShowMaterials(property);
             break;
@@ -220,3 +298,4 @@ void Inspector::ShowProperty(const ClassDescriptor& descriptor) const
         }
     }
 }
+

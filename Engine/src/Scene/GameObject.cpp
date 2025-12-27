@@ -2,9 +2,16 @@
 
 #include <utility>
 
+#include "Debug/Log.h"
+
 GameObject::GameObject(Scene& scene): m_scene(scene)
 {
     m_transform = AddComponent<TransformComponent>();
+}
+
+GameObject::~GameObject()
+{
+    PrintLog("GameObject %s destroyed", m_name.c_str());
 }
 
 std::vector<SafePtr<IComponent>> GameObject::GetComponents() const

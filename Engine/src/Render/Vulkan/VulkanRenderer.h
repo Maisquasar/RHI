@@ -94,6 +94,7 @@ public:
     VulkanDevice* GetDevice() const { return m_device.get(); }
     VulkanRenderPass* GetRenderPass() const { return m_renderPass.get(); }
     VulkanSwapChain* GetSwapChain() const { return m_swapChain.get(); }
+    VulkanSyncObjects* GetSyncObjects() const { return m_syncObjects.get(); }
     
     uint32_t GetMaxFramesInFlight() const { return MAX_FRAMES_IN_FLIGHT; }
 private:

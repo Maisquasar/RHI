@@ -50,6 +50,7 @@
 
 #include "Core/Window/WindowGLFW.h"
 #include "Resource/ComputeShader.h"
+#include "Utils/SPVReflection.h"
 
 VulkanRenderer::~VulkanRenderer() = default;
 
@@ -415,440 +416,6 @@ std::string VulkanRenderer::CompileShader(ShaderType type, const std::string& co
     return std::string(begin, end);
 }
 
-static void ParseBlockVariable(const SpvReflectBlockVariable* var, UniformMember& out)
-{
-    if (!var) return;
-
-    if (var->name && var->name[0]) out.name = var->name;
-    else if (var->type_description && var->type_description->type_name)
-        out.name = var->type_description->type_name;
-    else
-        out.name = "";
-
-    if (var->type_description && var->type_description->type_name)
-        out.typeName = var->type_description->type_name;
-    else
-        out.typeName = "";
-
-    out.offset = var->offset;
-    out.size = var->size;
-
-    if (var->type_description)
-    {
-        const SpvReflectTypeDescription* type_desc = var->type_description;
-
-        if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
-        {
-            out.type = UniformType::NestedStruct;
-        }
-        else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-        {
-            if (type_desc->traits.numeric.matrix.column_count == 2 &&
-                type_desc->traits.numeric.matrix.row_count == 2)
-            {
-                out.type = UniformType::Mat2;
-            }
-            else if (type_desc->traits.numeric.matrix.column_count == 3 &&
-                type_desc->traits.numeric.matrix.row_count == 3)
-            {
-                out.type = UniformType::Mat3;
-            }
-            else if (type_desc->traits.numeric.matrix.column_count == 4 &&
-                type_desc->traits.numeric.matrix.row_count == 4)
-            {
-                out.type = UniformType::Mat4;
-            }
-            else
-            {
-                out.type = UniformType::Unknown;
-            }
-        }
-        // Check for vector types
-        else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-        {
-            uint32_t component_count = type_desc->traits.numeric.vector.component_count;
-
-            if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
-            {
-                if (component_count == 2) out.type = UniformType::Vec2;
-                else if (component_count == 3) out.type = UniformType::Vec3;
-                else if (component_count == 4) out.type = UniformType::Vec4;
-                else out.type = UniformType::Unknown;
-            }
-            else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_INT)
-            {
-                if (component_count == 2) out.type = UniformType::IVec2;
-                else if (component_count == 3) out.type = UniformType::IVec3;
-                else if (component_count == 4) out.type = UniformType::IVec4;
-            }
-            else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
-            {
-                out.type = UniformType::Bool;
-            }
-            else
-            {
-                out.type = UniformType::Unknown;
-            }
-        }
-        else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
-        {
-            out.type = UniformType::Float;
-        }
-        else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_INT)
-        {
-            if (type_desc->traits.numeric.scalar.signedness)
-            {
-                out.type = UniformType::Int;
-            }
-            else
-            {
-                out.type = UniformType::UInt;
-            }
-        }
-        else if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
-        {
-            out.type = UniformType::Bool;
-        }
-        else
-        {
-            out.type = UniformType::Unknown;
-        }
-    }
-    else
-    {
-        out.type = UniformType::Unknown;
-    }
-
-    uint32_t dims_count = 0;
-    const uint32_t* dims_ptr = nullptr;
-
-    if (var->array.dims_count > 0)
-    {
-        dims_count = var->array.dims_count;
-        dims_ptr = var->array.dims;
-    }
-    else if (var->type_description && var->type_description->traits.array.dims_count > 0)
-    {
-        dims_count = var->type_description->traits.array.dims_count;
-        dims_ptr = var->type_description->traits.array.dims;
-    }
-
-    if (dims_count > 0 && dims_ptr)
-    {
-        out.isArray = true;
-        out.arrayDims.assign(dims_ptr, dims_ptr + dims_count);
-    }
-    else
-    {
-        out.isArray = false;
-    }
-
-    if (var->member_count > 0 && var->members)
-    {
-        out.members.reserve(var->member_count);
-        for (uint32_t m = 0; m < var->member_count; ++m)
-        {
-            UniformMember child;
-            ParseBlockVariable(&var->members[m], child);
-            out.members.push_back(std::move(child));
-        }
-    }
-}
-
-// Helper function to calculate storage buffer size
-static size_t CalculateStorageBufferSize(const SpvReflectDescriptorBinding* binding)
-{
-    // If the block has a known size, use it
-    if (binding->block.size > 0)
-    {
-        return binding->block.size;
-    }
-
-    // For runtime-sized arrays (common in SSBOs), calculate size from members
-    size_t calculatedSize = 0;
-    bool hasRuntimeArray = false;
-
-    if (binding->block.member_count > 0 && binding->block.members)
-    {
-        for (uint32_t m = 0; m < binding->block.member_count; ++m)
-        {
-            const SpvReflectBlockVariable* member = &binding->block.members[m];
-
-            // Check if this is a runtime array (array with no explicit size)
-            if (member->array.dims_count > 0 && member->array.dims[member->array.dims_count - 1] == 0)
-            {
-                hasRuntimeArray = true;
-                // For runtime arrays, we need to handle this differently
-                // The size should be set dynamically when creating the buffer
-                // Use VK_WHOLE_SIZE or a reasonable default
-                calculatedSize = member->offset; // Size up to the runtime array
-                break;
-            }
-
-            // Calculate the end offset of this member
-            size_t memberEnd = member->offset + member->size;
-            if (memberEnd > calculatedSize)
-            {
-                calculatedSize = memberEnd;
-            }
-        }
-    }
-
-    // If we have a runtime array, return 0 to indicate dynamic sizing needed
-    if (hasRuntimeArray)
-    {
-        return 0; // Caller must set size manually
-    }
-
-    // Otherwise return the calculated size, or a default minimum
-    return calculatedSize > 0 ? calculatedSize : 256; // 256 bytes minimum default
-}
-
-// Alternative: Calculate size with explicit element count for runtime arrays
-static size_t CalculateStorageBufferSizeWithCount(const SpvReflectDescriptorBinding* binding,
-                                                  uint32_t runtimeArrayElementCount = 0)
-{
-    if (binding->block.size > 0 && runtimeArrayElementCount == 0)
-    {
-        return binding->block.size;
-    }
-
-    size_t totalSize = 0;
-
-    if (binding->block.member_count > 0 && binding->block.members)
-    {
-        for (uint32_t m = 0; m < binding->block.member_count; ++m)
-        {
-            const SpvReflectBlockVariable* member = &binding->block.members[m];
-
-            // Check for runtime array
-            if (member->array.dims_count > 0 &&
-                member->array.dims[member->array.dims_count - 1] == 0)
-            {
-                // Calculate size of elements before runtime array
-                totalSize = member->offset;
-
-                if (runtimeArrayElementCount > 0)
-                {
-                    // Add size for runtime array elements
-                    size_t elementSize = member->size;
-
-                    // Account for array stride if available
-                    if (member->array.stride > 0)
-                    {
-                        elementSize = member->array.stride;
-                    }
-
-                    totalSize += elementSize * runtimeArrayElementCount;
-                }
-
-                break;
-            }
-
-            // For fixed-size members
-            size_t memberEnd = member->offset + member->size;
-            if (memberEnd > totalSize)
-            {
-                totalSize = memberEnd;
-            }
-        }
-    }
-
-    return totalSize > 0 ? totalSize : 256;
-}
-
-static Uniforms SpirvReflectUniforms(const std::string& spirv)
-{
-    size_t spirv_nbytes = spirv.size();
-    const void* spirv_code = spirv.data();
-
-    if (spirv_nbytes % sizeof(uint32_t) != 0)
-    {
-        PrintError("SPIR-V binary is corrupt or truncated");
-        return {};
-    }
-
-    SpvReflectShaderModule module;
-    SpvReflectResult result = spvReflectCreateShaderModule(spirv_nbytes,
-                                                           reinterpret_cast<const uint32_t*>(spirv_code),
-                                                           &module);
-
-    if (result != SPV_REFLECT_RESULT_SUCCESS)
-    {
-        PrintError("Failed to create SPIR-V Reflect Shader Module");
-        return {};
-    }
-
-    uint32_t binding_count = 0;
-    result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, NULL);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    SpvReflectDescriptorBinding** bindings =
-        static_cast<SpvReflectDescriptorBinding**>(malloc(binding_count * sizeof(SpvReflectDescriptorBinding*)));
-
-    if (bindings == NULL)
-    {
-        spvReflectDestroyShaderModule(&module);
-        PrintError("Failed to allocate memory for SPIR-V Reflect Descriptor Bindings");
-        return {};
-    }
-
-    result = spvReflectEnumerateDescriptorBindings(&module, &binding_count, bindings);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    Uniforms uniforms;
-    uniforms.reserve(binding_count);
-
-    for (uint32_t i = 0; i < binding_count; ++i)
-    {
-        const SpvReflectDescriptorBinding* binding = bindings[i];
-        Uniform u;
-
-        u.name = binding->name ? binding->name : "";
-        u.set = binding->set;
-        u.binding = binding->binding;
-
-        switch (binding->descriptor_type)
-        {
-        case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-            if (u.name.empty() && binding->type_description)
-            {
-                u.name = binding->type_description->type_name ? binding->type_description->type_name : u.name;
-            }
-            u.type = UniformType::NestedStruct;
-            u.size = binding->block.size;
-
-            if (binding->block.member_count > 0 && binding->block.members)
-            {
-                u.members.reserve(binding->block.member_count);
-                for (uint32_t m = 0; m < binding->block.member_count; ++m)
-                {
-                    UniformMember mem;
-                    ParseBlockVariable(&binding->block.members[m], mem);
-                    u.members.push_back(std::move(mem));
-                }
-            }
-            break;
-
-        case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-        case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-        case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
-            u.type = UniformType::Sampler2D;
-            u.size = 0; // Samplers don't have a size
-            break;
-
-        case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            {
-                if (u.name.empty() && binding->type_description)
-                {
-                    u.name = binding->type_description->type_name ? binding->type_description->type_name : u.name;
-                }
-                u.type = UniformType::StorageBuffer;
-
-                // Calculate storage buffer size
-                u.size = CalculateStorageBufferSize(binding);
-
-                if (binding->block.member_count > 0 && binding->block.members)
-                {
-                    u.members.reserve(binding->block.member_count);
-                    for (uint32_t m = 0; m < binding->block.member_count; ++m)
-                    {
-                        UniformMember mem;
-                        ParseBlockVariable(&binding->block.members[m], mem);
-                        u.members.push_back(std::move(mem));
-                    }
-                }
-                break;
-            }
-
-        default:
-            u.type = UniformType::Unknown;
-            u.size = 0;
-            break;
-        }
-
-        if (u.type != UniformType::Unknown)
-        {
-            uniforms[u.name] = std::move(u);
-        }
-    }
-
-    free(bindings);
-    spvReflectDestroyShaderModule(&module);
-
-    return uniforms;
-}
-
-static std::optional<PushConstant> SpirvReflectPushConstants(const std::string& spirv)
-{
-    size_t spirv_nbytes = spirv.size();
-    if (spirv_nbytes % sizeof(uint32_t) != 0)
-    {
-        PrintError("SPIR-V binary is corrupt or truncated");
-        return {};
-    }
-
-    SpvReflectShaderModule module;
-    SpvReflectResult result = spvReflectCreateShaderModule(
-        spirv_nbytes,
-        reinterpret_cast<const uint32_t*>(spirv.data()),
-        &module);
-
-    if (result != SPV_REFLECT_RESULT_SUCCESS)
-    {
-        PrintError("Failed to create SPIR-V Reflect Shader Module");
-        return {};
-    }
-
-    uint32_t pc_count = 0;
-    result = spvReflectEnumeratePushConstantBlocks(&module, &pc_count, nullptr);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    if (pc_count == 0)
-    {
-        spvReflectDestroyShaderModule(&module);
-        return {};
-    }
-
-    SpvReflectBlockVariable** pc_blocks =
-        static_cast<SpvReflectBlockVariable**>(
-            malloc(pc_count * sizeof(SpvReflectBlockVariable*)));
-
-    if (!pc_blocks)
-    {
-        PrintError("Allocation failure");
-        spvReflectDestroyShaderModule(&module);
-        return {};
-    }
-
-    result = spvReflectEnumeratePushConstantBlocks(&module, &pc_count, pc_blocks);
-    assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-    assert(pc_count == 1);
-
-    PushConstant pc;
-    const SpvReflectBlockVariable* block = pc_blocks[0];
-
-    pc.name = block->name ? block->name : "";
-    pc.size = block->size;
-
-    if (block->member_count > 0 && block->members)
-    {
-        pc.members.reserve(block->member_count);
-        for (uint32_t m = 0; m < block->member_count; m++)
-        {
-            UniformMember mem;
-            ParseBlockVariable(&block->members[m], mem);
-            pc.members.push_back(std::move(mem));
-        }
-    }
-
-    free(pc_blocks);
-    spvReflectDestroyShaderModule(&module);
-
-    return pc;
-}
-
 Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 {
     VertexShader* vertex = shader->GetVertexShader();
@@ -861,7 +428,7 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 
     if (vertex)
     {
-        result = SpirvReflectUniforms(vertex->GetContent());
+        result = SPV::SpirvReflectUniforms(vertex->GetContent());
         uniforms.reserve(result.size());
         for (auto& uniform : result | std::views::values)
         {
@@ -872,7 +439,7 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 
     if (frag)
     {
-        result = SpirvReflectUniforms(frag->GetContent());
+        result = SPV::SpirvReflectUniforms(frag->GetContent());
         uniforms.reserve(uniforms.size() + result.size());
         for (auto& uniform : result | std::views::values)
         {
@@ -883,7 +450,7 @@ Uniforms VulkanRenderer::GetUniforms(Shader* shader)
 
     if (comp)
     {
-        result = SpirvReflectUniforms(comp->GetContent());
+        result = SPV::SpirvReflectUniforms(comp->GetContent());
         uniforms.reserve(uniforms.size() + result.size());
         for (auto& uniform : result | std::views::values)
         {
@@ -905,7 +472,7 @@ PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
     std::optional<PushConstant> pushConstant;
     if (vertex)
     {
-        pushConstant = SpirvReflectPushConstants(vertex->GetContent());
+        pushConstant = SPV::SpirvReflectPushConstants(vertex->GetContent());
         if (pushConstant.has_value())
         {
             pushConstant.value().shaderType = ShaderType::Vertex;
@@ -915,7 +482,7 @@ PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
 
     if (frag)
     {
-        pushConstant = SpirvReflectPushConstants(frag->GetContent());
+        pushConstant = SPV::SpirvReflectPushConstants(frag->GetContent());
         if (pushConstant.has_value())
         {
             pushConstant.value().shaderType = ShaderType::Fragment;
@@ -925,7 +492,7 @@ PushConstants VulkanRenderer::GetPushConstants(Shader* shader)
 
     if (comp)
     {
-        pushConstant = SpirvReflectPushConstants(comp->GetContent());
+        pushConstant = SPV::SpirvReflectPushConstants(comp->GetContent());
         if (pushConstant.has_value())
         {
             pushConstant.value().shaderType = ShaderType::Compute;

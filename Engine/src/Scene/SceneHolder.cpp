@@ -7,6 +7,12 @@ SceneHolder::SceneHolder()
     m_currentScene = nullptr;
 }
 
+SceneHolder::~SceneHolder()
+{
+    if (m_currentScene)
+        m_currentScene.reset();
+}
+
 void SceneHolder::Initialize()
 {
     m_currentScene = std::make_unique<Scene>();

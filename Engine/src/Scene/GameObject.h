@@ -16,7 +16,7 @@ public:
     GameObject& operator=(const GameObject& other) = delete;
     GameObject(const GameObject&) = delete;
     GameObject(GameObject&&) noexcept = delete;
-    virtual ~GameObject() = default;
+    virtual ~GameObject();
     
     template<typename T>
     SafePtr<T> GetComponent();

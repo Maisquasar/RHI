@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -33,18 +34,20 @@ struct Property
     std::string name; 
     PropertyType type;    
     void* data;
+    
+    std::function<void(void*)> setter = nullptr;
 };
 
 struct ClassDescriptor
 {
     std::vector<Property> properties;
     
-    void AddProperty(const char* name, PropertyType type, void* data);
-    void AddFloat(const char* name, float& value);
-    void AddInt(const char* name, int& value);
-    void AddQuat(const char* name, Quat& value);
-    void AddVec2f(const char* name, Vec2f& value);
-    void AddVec3f(const char* name, Vec3f& value);
-    void AddVec4f(const char* name, Vec4f& value);
-    void AddTexture(const char* name, SafePtr<Texture>& value);
+    Property& AddProperty(const char* name, PropertyType type, void* data);
+    Property& AddFloat(const char* name, float& value);
+    Property& AddInt(const char* name, int& value);
+    Property& AddQuat(const char* name, Quat& value);
+    Property& AddVec2f(const char* name, Vec2f& value);
+    Property& AddVec3f(const char* name, Vec3f& value);
+    Property& AddVec4f(const char* name, Vec4f& value);
+    Property& AddTexture(const char* name, SafePtr<Texture>& value);
 };

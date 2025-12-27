@@ -6,6 +6,7 @@ class SceneHolder
 {
 public:
     SceneHolder();
+    ~SceneHolder();
 
     void Initialize();
 

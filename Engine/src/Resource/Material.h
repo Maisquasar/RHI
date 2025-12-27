@@ -81,6 +81,7 @@ public:
     bool Bind(RHIRenderer* renderer) const;
 
     MaterialAttributes GetAttributes() const { return m_attributes; }
+    RHIMaterial* GetHandle() const { return m_handle.get(); }
 private:
     void OnShaderChanged();
     

@@ -1,41 +1,43 @@
 #include "ClassDescriptor.h"
 
-void ClassDescriptor::AddProperty(const char* name, PropertyType type, void* data)
+Property& ClassDescriptor::AddProperty(const char* name, PropertyType type, void* data)
 {
-    properties.push_back({ name, type, data });
+    Property property = {name, type, data };
+    properties.push_back(property);
+    return properties.back();
 }
 
-void ClassDescriptor::AddFloat(const char* name, float& value)
+Property& ClassDescriptor::AddFloat(const char* name, float& value)
 {
-    AddProperty(name, PropertyType::Float, &value);
+    return AddProperty(name, PropertyType::Float, &value);
 }
 
-void ClassDescriptor::AddInt(const char* name, int& value)
+Property& ClassDescriptor::AddInt(const char* name, int& value)
 {
-    AddProperty(name, PropertyType::Int, &value);
+    return AddProperty(name, PropertyType::Int, &value);
 }
 
-void ClassDescriptor::AddQuat(const char* name, Quat& value)
+Property& ClassDescriptor::AddQuat(const char* name, Quat& value)
 {
-    AddProperty(name, PropertyType::Quat, &value);
+    return AddProperty(name, PropertyType::Quat, &value);
 }
 
-void ClassDescriptor::AddVec2f(const char* name, Vec2f& value)
+Property& ClassDescriptor::AddVec2f(const char* name, Vec2f& value)
 {
-    AddProperty(name, PropertyType::Vec2f, &value);
+    return AddProperty(name, PropertyType::Vec2f, &value);
 }
 
-void ClassDescriptor::AddVec3f(const char* name, Vec3f& value)
+Property& ClassDescriptor::AddVec3f(const char* name, Vec3f& value)
 {
-    AddProperty(name, PropertyType::Vec3f, &value);
+    return AddProperty(name, PropertyType::Vec3f, &value);
 }
 
-void ClassDescriptor::AddVec4f(const char* name, Vec4f& value)
+Property& ClassDescriptor::AddVec4f(const char* name, Vec4f& value)
 {
-    AddProperty(name, PropertyType::Vec4f, &value);
+    return AddProperty(name, PropertyType::Vec4f, &value);
 }
 
-void ClassDescriptor::AddTexture(const char* name, SafePtr<Texture>& value)
+Property& ClassDescriptor::AddTexture(const char* name, SafePtr<Texture>& value)
 {
-    AddProperty(name, PropertyType::Texture, &value);
+    return AddProperty(name, PropertyType::Texture, &value);
 }

@@ -12,6 +12,8 @@
 #include "Render/RHI/RHIVertexBuffer.h"
 #include "Render/RHI/RHIIndexBuffer.h"
 
+class RHIBuffer;
+
 struct Vertex
 {
     Vec3f position;
@@ -47,6 +49,7 @@ public:
     const std::vector<SubMesh>& GetSubMeshes() const { return m_subMeshes; }
     
     const BoundingBox& GetBoundingBox() const { return m_boundingBox; }
+
 private:
     void ComputeBoundingBox(const std::vector<Vec3f>& positionVertices);
 private:
